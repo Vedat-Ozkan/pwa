@@ -1,14 +1,25 @@
+import { useState, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
-import { isConfigured } from './lib/supabase.js'
+import { isConfigured, supabase } from './lib/supabase.js'
 import ClientsPage from './pages/ClientsPage.jsx'
 import ClientPage from './pages/ClientPage.jsx'
 import ReportPage from './pages/ReportPage.jsx'
+import LoginPage from './pages/LoginPage.jsx'
 import IOSInstallBanner from './components/IOSInstallBanner.jsx'
 
 export default function App() {
-  if (!isConfigured) {
-    return <SetupScreen />
-  }
+  const [session, setSession] = useState(undefined) // undefined = checking
+
+  useEffect(() => {
+    if (!isConfigured) return
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => setSession(session))
+    return () => subscription.unsubscribe()
+  }, [])
+
+  if (!isConfigured) return <SetupScreen />
+  if (session === undefined) return <div style={{ minHeight: '100svh', background: 'var(--navy)' }} />
+  if (!session) return <LoginPage />
 
   return (
     <>
@@ -26,7 +37,7 @@ export default function App() {
 function SetupScreen() {
   return (
     <div style={{
-      minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      minHeight: '100svh', display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 24, background: 'var(--bg)',
     }}>
       <div style={{ maxWidth: 480, width: '100%' }}>

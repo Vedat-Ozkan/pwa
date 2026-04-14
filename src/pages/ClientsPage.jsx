@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
+
+async function signOut() {
+  await supabase.auth.signOut()
+}
 import ClientModal from '../components/ClientModal.jsx'
 import { Toast, useToast } from '../components/Toast.jsx'
 
@@ -8,7 +12,7 @@ export default function ClientsPage() {
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null) // null | 'new' | { client object }
-  const { msg, show } = useToast()
+  const { toast, show } = useToast()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -42,19 +46,28 @@ export default function ClientsPage() {
     }
   }
 
-  async function handleDelete() {
-    if (!window.confirm('Delete this client and all their reports?')) return
-    const { error } = await supabase.from('clients').delete().eq('id', modal.id)
-    if (!error) {
-      show('Client deleted')
-      setModal(null)
-      fetchClients()
-    }
+  function handleDelete() {
+    const client = modal
+    setModal(null)
+    setClients(c => c.filter(x => x.id !== client.id))
+
+    let undone = false
+    show(`"${client.name}" deleted`, {
+      actionLabel: 'Undo',
+      duration: 5000,
+      onAction: () => {
+        undone = true
+        setClients(c => [client, ...c])
+      },
+      onTimeout: async () => {
+        if (!undone) await supabase.from('clients').delete().eq('id', client.id)
+      },
+    })
   }
 
   return (
     <>
-      <Toast msg={msg} />
+      <Toast toast={toast} />
 
       {/* Hero header */}
       <header className="hero">
@@ -67,8 +80,20 @@ export default function ClientsPage() {
               <div className="hero-sub">Field Reports</div>
             </div>
           </div>
-          <button className="btn-primary" onClick={() => setModal('new')}>
-            + New Client
+          <button
+            onClick={signOut}
+            title="Sign out"
+            style={{
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 10,
+              color: 'rgba(255,255,255,0.7)',
+              padding: '9px 13px',
+              fontSize: 13,
+              cursor: 'pointer',
+            }}
+          >
+            Sign out
           </button>
         </div>
       </header>
@@ -109,6 +134,25 @@ export default function ClientsPage() {
           ))}
         </div>
       </main>
+
+      {/* Floating new client button */}
+      <button
+        className="btn-primary"
+        onClick={() => setModal('new')}
+        style={{
+          position: 'fixed',
+          bottom: 'calc(24px + env(safe-area-inset-bottom))',
+          right: 24,
+          zIndex: 40,
+          borderRadius: 28,
+          padding: '14px 22px',
+          fontSize: 16,
+          fontWeight: 800,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+        }}
+      >
+        + New Client
+      </button>
 
       {modal && (
         <ClientModal

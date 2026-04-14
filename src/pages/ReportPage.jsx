@@ -38,13 +38,12 @@ export default function ReportPage() {
   const { clientId, reportId } = useParams()
   const isNew = reportId === undefined
   const navigate = useNavigate()
-  const { msg, show } = useToast()
+  const { toast, show } = useToast()
 
   const [client, setClient] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
-  const [pdfOpen, setPdfOpen] = useState(false)
   const [reportDbId] = useState(() => {
     // crypto.randomUUID() may not exist on older Android WebViews
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
@@ -154,7 +153,7 @@ export default function ReportPage() {
 
   return (
     <>
-      <Toast msg={msg} />
+      <Toast toast={toast} />
 
       <header className="topbar">
         <button className="btn-back" onClick={() => navigate(`/clients/${clientId}`)}>‹</button>
@@ -164,7 +163,7 @@ export default function ReportPage() {
         <button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
       </header>
 
-      <main className="page" style={{ paddingTop: 20, paddingBottom: 120 }}>
+      <main className="page" style={{ paddingTop: 20, paddingBottom: 0 }}>
 
         {/* ── Project Information ── */}
         <Section title="Project Information">
@@ -313,38 +312,54 @@ export default function ReportPage() {
           )}
         </Section>
 
-        <div className="divider" />
-
         {/* ── PDF Preview ── */}
-        <Section title="PDF">
-          {!pdfOpen ? (
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{ width: '100%' }}
-              onClick={() => setPdfOpen(true)}
-            >
-              Preview &amp; Download PDF
-            </button>
-          ) : (
-            <ErrorBoundary fallback="PDF preview failed to load. Try downloading directly.">
-              <Suspense fallback={<p style={{ color: 'var(--muted)', fontSize: 14 }}>Loading PDF renderer…</p>}>
-                <ReportPDFPreview form={form} client={client} clientId={clientId} />
-              </Suspense>
-            </ErrorBoundary>
-          )}
-        </Section>
+        <div style={{
+          position: 'sticky',
+          top: 'calc(56px + env(safe-area-inset-top))',
+          zIndex: 40,
+          margin: '28px -16px 0',
+          background: 'var(--navy)',
+          padding: '12px 16px 12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+        }}>
+          <div style={{
+            background: 'var(--gold)', borderRadius: 6,
+            padding: '4px 10px', fontSize: 11, fontWeight: 800,
+            color: '#1e1a12', letterSpacing: '0.06em', textTransform: 'uppercase',
+          }}>
+            Preview
+          </div>
+          <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>
+            PDF Report
+          </span>
+        </div>
+
+        <div style={{ margin: '0 -16px', background: 'var(--navy)', padding: '0 16px 120px' }}>
+          <ErrorBoundary fallback={
+            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>PDF preview failed to load. Try downloading directly.</p>
+          }>
+            <Suspense fallback={<p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>Loading PDF renderer…</p>}>
+              <ReportPDFPreview form={form} client={client} clientId={clientId} />
+            </Suspense>
+          </ErrorBoundary>
+        </div>
 
       </main>
 
       {/* Floating bottom bar */}
       <div className="bottom-bar">
         <div className="bottom-bar-inner">
-          <button className="btn-ghost" onClick={() => navigate(`/clients/${clientId}`)}>
+          <button
+            className="btn-ghost"
+            style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.3)' }}
+            onClick={() => navigate(`/clients/${clientId}`)}
+          >
             Back
           </button>
           <button className="btn-primary" onClick={save} disabled={saving}>
-            {saving ? 'Saving…' : 'Save Report'}
+            {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
       </div>

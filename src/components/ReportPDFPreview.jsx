@@ -3,6 +3,7 @@ import { pdf } from '@react-pdf/renderer'
 import { ReportDocument } from '../lib/reportPdf.jsx'
 import { LEAK_SOURCES } from '../lib/constants.js'
 
+
 export default function ReportPDFPreview({ form, client, clientId }) {
   const [generating, setGenerating] = useState(false)
 
@@ -11,14 +12,20 @@ export default function ReportPDFPreview({ form, client, clientId }) {
     try {
       const doc = <ReportDocument form={form} client={client} />
       const blob = await pdf(doc).toBlob()
-      const url = URL.createObjectURL(blob)
-      const filename = `HSX-Report-${form.job_name || 'Untitled'}-${form.report_date || 'draft'}.pdf`
+      const filename = `HSX-Report-${(form.job_name || 'Untitled').replace(/[^a-z0-9]/gi, '-')}-${form.report_date || 'draft'}.pdf`
 
-      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
-
-      if (action === 'download') {
+      if (action === 'share') {
+        const file = new File([blob], filename, { type: 'application/pdf' })
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: filename })
+        } else {
+          // Fallback: open blob URL so the browser/OS can handle it
+          window.open(URL.createObjectURL(blob), '_blank')
+        }
+      } else {
+        const url = URL.createObjectURL(blob)
+        const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
         if (isIOS) {
-          // iOS: open in new tab so native PDF viewer handles save/share
           window.open(url, '_blank')
         } else {
           const a = document.createElement('a')
@@ -28,8 +35,10 @@ export default function ReportPDFPreview({ form, client, clientId }) {
         }
       }
     } catch (err) {
-      console.error('PDF generation error:', err)
-      alert('Error generating PDF. Please try again.')
+      if (err?.name !== 'AbortError') {
+        console.error('PDF generation error:', err)
+        alert('Error generating PDF. Please try again.')
+      }
     }
     setGenerating(false)
   }
@@ -48,16 +57,51 @@ export default function ReportPDFPreview({ form, client, clientId }) {
       <div style={{ display: 'flex', gap: 10 }}>
         <button
           type="button"
-          className="btn-primary"
-          style={{ flex: 1 }}
           onClick={() => generate('download')}
           disabled={generating}
+          style={{
+            flex: 1,
+            background: '#2860b8',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 12,
+            padding: '13px 16px',
+            fontSize: 15,
+            fontWeight: 700,
+            cursor: generating ? 'not-allowed' : 'pointer',
+            opacity: generating ? 0.6 : 1,
+          }}
         >
-          {generating ? 'Generating…' : '↓ Download PDF'}
+          {generating ? 'Generating…' : '↓ Download'}
+        </button>
+        <button
+          type="button"
+          onClick={() => generate('share')}
+          disabled={generating}
+          style={{
+            flex: 1,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+            background: '#1a7d35',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 12,
+            padding: '13px 16px',
+            fontSize: 15,
+            fontWeight: 700,
+            cursor: generating ? 'not-allowed' : 'pointer',
+            opacity: generating ? 0.6 : 1,
+          }}
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+            <polyline points="16 6 12 2 8 6"/>
+            <line x1="12" y1="2" x2="12" y2="15"/>
+          </svg>
+          {generating ? 'Generating…' : 'Share'}
         </button>
       </div>
 
-      {/iphone|ipad|ipod/i.test(navigator.userAgent) && (
+      {!navigator.share && /iphone|ipad|ipod/i.test(navigator.userAgent) && (
         <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>
           On iOS: PDF will open in Safari — tap Share to save or send.
         </p>

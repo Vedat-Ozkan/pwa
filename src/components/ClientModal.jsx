@@ -1,30 +1,60 @@
 import { useState, useEffect } from 'react'
+import { useLockBodyScroll } from '../lib/useLockBodyScroll.js'
 
 const EMPTY = { name: '', building: '', address: '', billing: '', contact: '', phone: '', email: '' }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function formatPhone(raw) {
+  const d = raw.replace(/\D/g, '').slice(0, 10)
+  if (d.length === 0) return ''
+  if (d.length <= 3) return `(${d}`
+  if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`
+  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`
+}
+
+function validate(form) {
+  const errors = {}
+  const digits = form.phone.replace(/\D/g, '')
+  if (digits.length > 0 && digits.length < 10)
+    errors.phone = 'Invalid phone number'
+  if (form.email && !EMAIL_RE.test(form.email.trim()))
+    errors.email = 'Invalid email address'
+  return errors
+}
+
+const errorStyle = { borderColor: 'var(--danger)' }
+const errorMsg = { fontSize: 12, color: 'var(--danger)' }
+
 export default function ClientModal({ initial, onSave, onDelete, onClose }) {
+  useLockBodyScroll()
   const [form, setForm] = useState(initial ?? EMPTY)
+  const [touched, setTouched] = useState({})
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     setForm(initial ?? EMPTY)
+    setTouched({})
   }, [initial])
 
   function set(field) {
     return (e) => setForm(f => ({ ...f, [field]: e.target.value }))
   }
 
+const errors = validate(form)
+  const hasErrors = Object.keys(errors).length > 0
+  const isEdit = !!initial
+
   async function handleSave() {
-    if (!form.name.trim()) return
+    setTouched({ phone: true, email: true })
+    if (!form.name.trim() || hasErrors) return
     setSaving(true)
     await onSave(form)
     setSaving(false)
   }
 
-  const isEdit = !!initial
-
   return (
-    <div className="overlay" onClick={onClose}>
+    <div className="overlay">
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h2 className="modal-title">{isEdit ? 'Edit Client' : 'New Client'}</h2>
 
@@ -51,11 +81,29 @@ export default function ClientModal({ initial, onSave, onDelete, onClose }) {
           </div>
           <div className="field">
             <label>Phone</label>
-            <input value={form.phone} onChange={set('phone')} type="tel" placeholder="Phone number" />
+            <input
+              value={form.phone}
+              onChange={e => setForm(f => ({ ...f, phone: formatPhone(e.target.value) }))}
+              type="tel"
+              placeholder="(416) 555-0000"
+              style={touched.phone && errors.phone ? errorStyle : {}}
+            />
+            {touched.phone && errors.phone && (
+              <span style={errorMsg}>{errors.phone}</span>
+            )}
           </div>
           <div className="field">
             <label>Email</label>
-            <input value={form.email} onChange={set('email')} type="email" placeholder="Email address" />
+            <input
+              value={form.email}
+              onChange={set('email')}
+              type="email"
+              placeholder="e.g. contact@company.com"
+              style={touched.email && errors.email ? errorStyle : {}}
+            />
+            {touched.email && errors.email && (
+              <span style={errorMsg}>{errors.email}</span>
+            )}
           </div>
         </div>
 

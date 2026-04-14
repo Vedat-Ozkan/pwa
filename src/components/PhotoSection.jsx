@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase.js'
+import { useLockBodyScroll } from '../lib/useLockBodyScroll.js'
 import {
   DndContext,
   closestCenter,
@@ -106,6 +107,32 @@ function SortablePhoto({ photo, index, onRemove, onCaption }) {
 export default function PhotoSection({ label, photos, onChange, clientId, reportId }) {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
+  useLockBodyScroll(sheetOpen)
+  const sheetRef = useRef(null)
+  const touchStartY = useRef(0)
+  const currentDragY = useRef(0)
+
+  function onSwipeStart(e) {
+    touchStartY.current = e.touches[0].clientY
+    currentDragY.current = 0
+    if (sheetRef.current) sheetRef.current.style.transition = 'none'
+  }
+  function onSwipeMove(e) {
+    const dy = Math.max(0, e.touches[0].clientY - touchStartY.current)
+    currentDragY.current = dy
+    if (sheetRef.current) sheetRef.current.style.transform = `translateY(${dy}px)`
+  }
+  function onSwipeEnd() {
+    if (currentDragY.current > 80) {
+      setSheetOpen(false)
+    } else {
+      if (sheetRef.current) {
+        sheetRef.current.style.transition = 'transform 0.25s ease'
+        sheetRef.current.style.transform = 'translateY(0)'
+      }
+    }
+    currentDragY.current = 0
+  }
 
   const cameraId = `camera-${label}`
   const galleryId = `gallery-${label}`
@@ -199,41 +226,66 @@ export default function PhotoSection({ label, photos, onChange, clientId, report
       {/* Bottom sheet */}
       {sheetOpen && (
         <div
-          onClick={() => setSheetOpen(false)}
           style={{
             position: 'fixed', inset: 0, zIndex: 200,
-            background: 'rgba(0,0,0,0.5)',
+            background: 'rgba(0,0,0,0.45)',
             display: 'flex', alignItems: 'flex-end',
           }}
         >
           <div
+            ref={sheetRef}
             onClick={e => e.stopPropagation()}
             style={{
               width: '100%',
               background: '#fff',
-              borderRadius: '18px 18px 0 0',
-              padding: '12px 16px',
-              paddingBottom: 'calc(16px + env(safe-area-inset-bottom))',
+              borderRadius: '20px 20px 0 0',
+              paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
             }}
           >
-            {/* Drag handle pill */}
-            <div style={{
-              width: 36, height: 4, background: '#d9e0e7',
-              borderRadius: 2, margin: '0 auto 20px',
-            }} />
+            {/* Header: X left, drag pill centre — touch area for swipe-to-close */}
+            <div
+              onTouchStart={onSwipeStart}
+              onTouchMove={onSwipeMove}
+              onTouchEnd={onSwipeEnd}
+              style={{
+                position: 'relative',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '14px 16px 16px',
+                touchAction: 'none',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setSheetOpen(false)}
+                style={{
+                  position: 'absolute', left: 16,
+                  background: 'none', border: 'none',
+                  padding: 4, cursor: 'pointer',
+                  color: '#94a3b8', display: 'flex',
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+              <div style={{ width: 36, height: 4, background: '#d9e0e7', borderRadius: 2 }} />
+            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {/* Camera — label directly tied to input, Android-safe */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 16px' }}>
+              {/* Camera */}
               <label
                 htmlFor={cameraId}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 14,
-                  padding: '14px 16px', borderRadius: 12,
+                  padding: '15px 16px', borderRadius: 14,
                   background: 'var(--soft)', cursor: 'pointer',
                   fontSize: 16, fontWeight: 600, color: 'var(--navy)',
                 }}
               >
-                <span style={{ fontSize: 24 }}>📷</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
                 Take Photo
               </label>
 
@@ -242,27 +294,18 @@ export default function PhotoSection({ label, photos, onChange, clientId, report
                 htmlFor={galleryId}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 14,
-                  padding: '14px 16px', borderRadius: 12,
+                  padding: '15px 16px', borderRadius: 14,
                   background: 'var(--soft)', cursor: 'pointer',
                   fontSize: 16, fontWeight: 600, color: 'var(--navy)',
                 }}
               >
-                <span style={{ fontSize: 24 }}>🖼️</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
                 Choose from Gallery
               </label>
-
-              <button
-                type="button"
-                onClick={() => setSheetOpen(false)}
-                style={{
-                  padding: '14px', borderRadius: 12, border: 'none',
-                  background: 'var(--bg)', color: 'var(--muted)',
-                  fontSize: 16, fontWeight: 700, cursor: 'pointer',
-                  marginTop: 4,
-                }}
-              >
-                Cancel
-              </button>
             </div>
           </div>
         </div>

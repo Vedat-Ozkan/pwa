@@ -6,7 +6,6 @@ import { LEAK_SOURCES } from './constants.js'
 const MARGIN = 40
 const PAGE_WIDTH = 612
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2
-const MAX_IMG_HEIGHT = 200
 const NAVY = '#10243e'
 const GOLD = '#c8a85d'
 const MUTED = '#667487'
@@ -18,7 +17,7 @@ const s = StyleSheet.create({
     fontSize: 10,
     color: '#1d2733',
     paddingTop: MARGIN,
-    paddingBottom: MARGIN + 20,
+    paddingBottom: MARGIN,
     paddingLeft: MARGIN,
     paddingRight: MARGIN,
   },
@@ -29,15 +28,15 @@ const s = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 1.5,
     borderBottomColor: LINE,
-    paddingBottom: 10,
-    marginBottom: 16,
+    paddingBottom: 6,
+    marginBottom: 10,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 52, height: 52, objectFit: 'contain' },
-  headerTitle: { fontSize: 16, fontFamily: 'Helvetica-Bold', color: NAVY },
-  headerSub: { fontSize: 9, color: MUTED, marginTop: 2 },
-  headerDate: { fontSize: 9, color: MUTED, textAlign: 'right' },
-  headerDateVal: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: NAVY, textAlign: 'right', marginTop: 2 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  logo: { width: 36, height: 36, objectFit: 'contain' },
+  headerTitle: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: NAVY },
+  headerSub: { fontSize: 8, color: MUTED, marginTop: 2 },
+  headerDate: { fontSize: 8, color: MUTED, textAlign: 'right' },
+  headerDateVal: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: NAVY, textAlign: 'right', marginTop: 2 },
   // Footer
   footer: {
     position: 'absolute',
@@ -92,10 +91,7 @@ const s = StyleSheet.create({
   // Signature
   sigName: { fontSize: 18, fontFamily: 'Helvetica-Oblique', color: NAVY, marginTop: 4 },
   sigLine: { borderBottomWidth: 1, borderBottomColor: NAVY, marginTop: 2, marginBottom: 4 },
-  // Photo grid
-  photoRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  photoWrap: { flex: 1 },
-  photoImg: { width: '100%', objectFit: 'contain', borderRadius: 4 },
+  // Photo grid — explicit widths, gap as marginRight (gap unreliable in react-pdf)
   photoCaption: { fontSize: 8, color: MUTED, marginTop: 3, textAlign: 'center' },
 })
 
@@ -150,51 +146,30 @@ function FieldGrid({ fields }) {
   )
 }
 
-function PhotoGrid({ photos }) {
-  if (!photos.length) return null
+const PHOTO_GAP = 8
+const PHOTO_W = (CONTENT_WIDTH - PHOTO_GAP) / 2   // 262pt
+const IMAGE_H = 185                                 // 3 rows fit per page with natural flow (no forced breaks)
+const CAPTION_H = 28                                // always-reserved caption space (2 lines @ 8pt)
 
-  // Build rows: pairs of photos
+// Build rows per-section so photos from different sections never share a row
+function buildPhotoRows(before, progress, after) {
+  const sections = [
+    { name: 'Before Photos', photos: before },
+    { name: 'Progress Photos', photos: progress },
+    { name: 'After Photos', photos: after },
+  ]
   const rows = []
-  for (let i = 0; i < photos.length; i += 2) {
-    rows.push(photos.slice(i, i + 2))
+  for (const { name, photos } of sections) {
+    for (let i = 0; i < photos.length; i += 2) {
+      rows.push({ photos: photos.slice(i, i + 2), sectionTitle: i === 0 ? name : null })
+    }
   }
-
-  // If single photo, show full width (no pair)
-  return (
-    <View>
-      {photos.length === 1 ? (
-        <View style={{ marginBottom: 8 }}>
-          <Image
-            style={[s.photoImg, { maxHeight: MAX_IMG_HEIGHT }]}
-            src={photos[0].url}
-          />
-          {photos[0].caption ? (
-            <Text style={s.photoCaption}>{photos[0].caption}</Text>
-          ) : null}
-        </View>
-      ) : (
-        rows.map((row, ri) => (
-          <View key={ri} style={s.photoRow}>
-            {row.map((p, pi) => (
-              <View key={pi} style={s.photoWrap}>
-                <Image
-                  style={[s.photoImg, { height: MAX_IMG_HEIGHT }]}
-                  src={p.url}
-                />
-                {p.caption ? <Text style={s.photoCaption}>{p.caption}</Text> : null}
-              </View>
-            ))}
-            {/* Fill empty slot if odd number in last row */}
-            {row.length === 1 && <View style={s.photoWrap} />}
-          </View>
-        ))
-      )}
-    </View>
-  )
+  return rows
 }
 
 export function ReportDocument({ form, client }) {
   const { before = [], progress = [], after = [] } = form.photos ?? {}
+  const photoRows = buildPhotoRows(before, progress, after)
 
   const projectFields = [
     { label: 'Job Name', value: form.job_name },
@@ -215,7 +190,6 @@ export function ReportDocument({ form, client }) {
     <Document title={`HSX Report — ${form.job_name || 'Untitled'}`} author="HSX Roofing Inc.">
       <Page size="LETTER" style={s.page}>
         <Header client={client} reportDate={form.report_date} />
-        <Footer />
 
         {/* Project Information */}
         <Section title="Project Information">
@@ -264,24 +238,32 @@ export function ReportDocument({ form, client }) {
           </Section>
         ) : null}
 
-        {/* Photos */}
-        {before.length > 0 && (
-          <Section title="Before Photos">
-            <PhotoGrid photos={before} />
-          </Section>
-        )}
-
-        {progress.length > 0 && (
-          <Section title="Progress Photos">
-            <PhotoGrid photos={progress} />
-          </Section>
-        )}
-
-        {after.length > 0 && (
-          <Section title="After Photos">
-            <PhotoGrid photos={after} />
-          </Section>
-        )}
+        {/* Photos — 2 per row, no forced breaks.
+            IMAGE_H=185 means 3 rows fit per page naturally (701pt / 712pt usable).
+            wrap={false} keeps each row atomic; react-pdf handles overflow. */}
+        {photoRows.map((row, ri) => {
+          return (
+            <View key={ri} wrap={false}>
+              {row.sectionTitle && (
+                <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: NAVY, marginBottom: 5, marginTop: ri === 0 ? 0 : 4 }}>
+                  {row.sectionTitle}
+                </Text>
+              )}
+              <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                {row.photos.map((p, pi) => (
+                  <View key={pi} style={{ width: PHOTO_W, marginRight: pi === 0 ? PHOTO_GAP : 0 }}>
+                    <View style={{ width: PHOTO_W, height: IMAGE_H, backgroundColor: '#f4f6f8' }}>
+                      <Image style={{ width: PHOTO_W, height: IMAGE_H, objectFit: 'contain' }} src={p.url} />
+                    </View>
+                    <View style={{ height: CAPTION_H, paddingHorizontal: 2, paddingTop: 3 }}>
+                      {p.caption ? <Text style={s.photoCaption}>{p.caption}</Text> : null}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )
+        })}
 
         {/* Signature */}
         {form.signedBy && (

@@ -110,7 +110,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus, select:f
   outline-offset: 1px;
   border-color: var(--navy);
 }
-textarea { min-height: 100px; resize: vertical; line-height: 1.5; }
+textarea { min-height: 140px; resize: vertical; line-height: 1.5; }
 select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23667487' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -179,18 +179,53 @@ select {
 /* ─── Toast ─── */
 .toast {
   position: fixed;
-  top: max(18px, env(safe-area-inset-top));
+  top: calc(56px + env(safe-area-inset-top) + 12px);
   left: 50%;
   transform: translateX(-50%);
-  background: #11253d;
+  background: #1a3a5c;
   color: #fff;
-  padding: 11px 18px;
+  padding: 12px 22px;
   border-radius: 999px;
   font-size: 14px;
   font-weight: 700;
   z-index: 200;
   pointer-events: none;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+  white-space: nowrap;
+  animation: toast-in 0.18s ease;
+}
+.toast.toast-wide {
+  left: 0;
+  right: 0;
+  transform: none;
+  border-radius: 0;
+  padding: 12px 16px;
+  pointer-events: auto;
+  white-space: normal;
+  overflow: hidden;
+}
+.toast-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  background: var(--gold);
+  transform-origin: left;
+  animation: toast-bar linear forwards;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.toast.toast-wide { animation: toast-in-wide 0.18s ease; }
+@keyframes toast-in-wide {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes toast-bar {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
 }
 
 /* ─── Modal / overlay ─── */
@@ -211,7 +246,7 @@ select {
   border-radius: var(--radius) var(--radius) 0 0;
   padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
   width: 100%;
-  max-height: 92dvh;
+  max-height: 92svh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -219,7 +254,7 @@ select {
   .modal {
     border-radius: var(--radius);
     max-width: 520px;
-    max-height: 85dvh;
+    max-height: 85svh;
     padding: 24px;
   }
 }
@@ -254,10 +289,13 @@ select {
   flex: 1;
   font-size: 16px;
   font-weight: 800;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
+.topbar-title::-webkit-scrollbar { display: none; }
 .topbar button {
   background: rgba(255,255,255,0.12);
   color: #fff;
