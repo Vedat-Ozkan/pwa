@@ -1,0 +1,256 @@
+import { useState } from 'react'
+import { pdf } from '@react-pdf/renderer'
+import { ReportDocument } from '../lib/reportPdf.jsx'
+import { LEAK_SOURCES } from '../lib/constants.js'
+
+export default function ReportPDFPreview({ form, client, clientId }) {
+  const [generating, setGenerating] = useState(false)
+
+  async function generate(action) {
+    setGenerating(true)
+    try {
+      const doc = <ReportDocument form={form} client={client} />
+      const blob = await pdf(doc).toBlob()
+      const url = URL.createObjectURL(blob)
+      const filename = `HSX-Report-${form.job_name || 'Untitled'}-${form.report_date || 'draft'}.pdf`
+
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
+
+      if (action === 'download') {
+        if (isIOS) {
+          // iOS: open in new tab so native PDF viewer handles save/share
+          window.open(url, '_blank')
+        } else {
+          const a = document.createElement('a')
+          a.href = url
+          a.download = filename
+          a.click()
+        }
+      }
+    } catch (err) {
+      console.error('PDF generation error:', err)
+      alert('Error generating PDF. Please try again.')
+    }
+    setGenerating(false)
+  }
+
+  return (
+    <div>
+      {/* HTML preview that mirrors the PDF layout */}
+      <div style={{
+        border: '1px solid var(--line)', borderRadius: 12,
+        background: '#fff', overflow: 'hidden', marginBottom: 16,
+        boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+      }}>
+        <HTMLPreview form={form} client={client} />
+      </div>
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button
+          type="button"
+          className="btn-primary"
+          style={{ flex: 1 }}
+          onClick={() => generate('download')}
+          disabled={generating}
+        >
+          {generating ? 'Generating…' : '↓ Download PDF'}
+        </button>
+      </div>
+
+      {/iphone|ipad|ipod/i.test(navigator.userAgent) && (
+        <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>
+          On iOS: PDF will open in Safari — tap Share to save or send.
+        </p>
+      )}
+    </div>
+  )
+}
+
+/* ─── HTML Preview ─── */
+function HTMLPreview({ form, client }) {
+  const { before = [], progress = [], after = [] } = form.photos ?? {}
+
+  return (
+    <div style={{ padding: '24px 28px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+      {/* Header */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        borderBottom: '2px solid #d9e0e7', paddingBottom: 14, marginBottom: 18,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <img src="https://hsxroofing.com/wp-content/uploads/2025/03/logo_hsx.png"
+            alt="HSX" style={{ height: 52, background: '#fff', borderRadius: 6, padding: 3 }} />
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#10243e' }}>HSX Roofing Field Report</div>
+            <div style={{ fontSize: 12, color: '#667487', marginTop: 2 }}>Prepared by HSX Roofing Inc.</div>
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 11, color: '#667487' }}>Report Date</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#10243e' }}>{form.report_date || '—'}</div>
+        </div>
+      </div>
+
+      {/* Project Information */}
+      <PreviewSection title="Project Information">
+        <TwoColGrid fields={[
+          ['Job Name', form.job_name],
+          ['Customer / Property Manager', client?.name],
+          ['Building Name', client?.building],
+          ['Job Address', client?.address],
+          ['Billing Address', client?.billing],
+          ['Contact Person', client?.contact],
+          ['Phone', client?.phone],
+          ['Email', client?.email],
+          ['Supervisor', form.supervisor],
+          ['PO Number', form.po_number],
+          ['WO Number', form.wo_number],
+        ]} />
+      </PreviewSection>
+
+      {/* Leak Source — all options, checked/unchecked */}
+      <PreviewSection title="Leak Source">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px 8px' }}>
+          {LEAK_SOURCES.map(l => {
+            const checked = (form.leakSources ?? []).includes(l)
+            return (
+              <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '3px 0' }}>
+                <div style={{
+                  width: 13, height: 13, borderRadius: 3, flexShrink: 0,
+                  border: checked ? 'none' : '1.5px solid #b0bec5',
+                  background: checked ? '#10243e' : '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {checked && <span style={{ color: '#fff', fontSize: 9, lineHeight: 1, fontWeight: 900 }}>✓</span>}
+                </div>
+                <span style={{
+                  fontSize: 12,
+                  color: checked ? '#10243e' : '#9eaab6',
+                  fontWeight: checked ? 700 : 400,
+                }}>{l}</span>
+              </div>
+            )
+          })}
+        </div>
+      </PreviewSection>
+
+      {form.findings && (
+        <PreviewSection title="Site Conditions / Findings">
+          <p style={{ margin: 0, fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{form.findings}</p>
+        </PreviewSection>
+      )}
+
+      {form.workPerformed && (
+        <PreviewSection title="Work Performed">
+          <p style={{ margin: 0, fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{form.workPerformed}</p>
+        </PreviewSection>
+      )}
+
+      {form.materials && (
+        <PreviewSection title="Materials Used">
+          <p style={{ margin: 0, fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{form.materials}</p>
+        </PreviewSection>
+      )}
+
+      {form.notes && (
+        <PreviewSection title="Notes / Recommendations">
+          <p style={{ margin: 0, fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{form.notes}</p>
+        </PreviewSection>
+      )}
+
+      {before.length > 0 && (
+        <PreviewSection title="Before Photos">
+          <PhotoPreviewGrid photos={before} />
+        </PreviewSection>
+      )}
+
+      {progress.length > 0 && (
+        <PreviewSection title="Progress Photos">
+          <PhotoPreviewGrid photos={progress} />
+        </PreviewSection>
+      )}
+
+      {after.length > 0 && (
+        <PreviewSection title="After Photos">
+          <PhotoPreviewGrid photos={after} />
+        </PreviewSection>
+      )}
+
+      {form.signedBy && (
+        <PreviewSection title="Signature">
+          <div style={{ fontStyle: 'italic', fontSize: 22, fontFamily: 'Georgia, serif', color: '#10243e' }}>
+            {form.signedBy}
+          </div>
+          <div style={{ borderTop: '1px solid #10243e', marginTop: 4, paddingTop: 4, fontSize: 11, color: '#667487' }}>
+            Authorized Signature
+          </div>
+        </PreviewSection>
+      )}
+    </div>
+  )
+}
+
+function PreviewSection({ title, children }) {
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{
+        fontSize: 12, fontWeight: 800, color: '#10243e',
+        borderBottom: '1px solid #d9e0e7', paddingBottom: 5, marginBottom: 10,
+        textTransform: 'uppercase', letterSpacing: '0.04em',
+      }}>{title}</div>
+      {children}
+    </div>
+  )
+}
+
+function TwoColGrid({ fields }) {
+  const filled = fields.filter(([, v]) => v)
+  if (!filled.length) return <p style={{ margin: 0, fontSize: 13, color: '#667487' }}>No information entered.</p>
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+      {filled.map(([label, value]) => (
+        <div key={label}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#667487', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
+            {label}
+          </div>
+          <div style={{ fontSize: 13, color: '#1d2733' }}>{value}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function PhotoPreviewGrid({ photos }) {
+  if (photos.length === 1) {
+    return (
+      <div>
+        <img src={photos[0].url} alt={photos[0].caption || 'Photo'}
+          style={{ width: '100%', maxHeight: 200, objectFit: 'contain', borderRadius: 8, background: '#f1f3f7' }} />
+        {photos[0].caption && (
+          <div style={{ fontSize: 12, color: '#667487', marginTop: 4, textAlign: 'center' }}>{photos[0].caption}</div>
+        )}
+      </div>
+    )
+  }
+
+  const rows = []
+  for (let i = 0; i < photos.length; i += 2) rows.push(photos.slice(i, i + 2))
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {rows.map((row, ri) => (
+        <div key={ri} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {row.map((p, pi) => (
+            <div key={pi}>
+              <img src={p.url} alt={p.caption || `Photo ${pi + 1}`}
+                style={{ width: '100%', height: 160, objectFit: 'contain', borderRadius: 8, background: '#f1f3f7', display: 'block' }} />
+              {p.caption && (
+                <div style={{ fontSize: 12, color: '#667487', marginTop: 3, textAlign: 'center' }}>{p.caption}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
