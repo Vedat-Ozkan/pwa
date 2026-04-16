@@ -1,9 +1,8 @@
-import chromium from '@sparticuz/chromium-min'
 import puppeteer from 'puppeteer-core'
 import { createClient } from '@supabase/supabase-js'
 import { generateReportHTML } from './templates/report-template.js'
 
-// Hosted Chromium binary — update version to match @sparticuz/chromium-min installed
+// Hosted Chromium binary — match @sparticuz/chromium-min installed version
 const CHROMIUM_URL =
   'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'
 
@@ -11,6 +10,18 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
+
+  // @sparticuz/chromium-min only extracts system libs (libnss3.so etc.) when
+  // it detects AWS Lambda via AWS_EXECUTION_ENV. Vercel reserves AWS_* env
+  // vars in dashboard, so set in code then dynamic-import so the module's
+  // init-time detection sees it.
+  if (!process.env.AWS_EXECUTION_ENV) {
+    const nodeMajor = parseInt(process.versions.node.split('.')[0], 10)
+    process.env.AWS_EXECUTION_ENV = nodeMajor >= 20
+      ? 'AWS_Lambda_nodejs20.x'
+      : 'AWS_Lambda_nodejs18.x'
+  }
+  const { default: chromium } = await import('@sparticuz/chromium-min')
 
   const { reportId } = req.body ?? {}
   if (!reportId) return res.status(400).json({ error: 'reportId is required' })
