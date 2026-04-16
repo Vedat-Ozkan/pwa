@@ -52,7 +52,7 @@ export default function ClientsPage() {
     setClients(c => c.filter(x => x.id !== client.id))
 
     let undone = false
-    show(`"${client.name}" deleted`, {
+    show(`"${client.client_name}" deleted`, {
       actionLabel: 'Undo',
       duration: 5000,
       onAction: () => {
@@ -112,12 +112,9 @@ export default function ClientsPage() {
           {clients.map(c => (
             <div key={c.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--navy)' }}>{c.name}</div>
-                {c.building && (
-                  <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>{c.building}</div>
-                )}
-                {c.address && (
-                  <div style={{ fontSize: 13, color: 'var(--muted)' }}>{c.address}</div>
+                <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--navy)' }}>{c.client_name}</div>
+                {c.client_address && (
+                  <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>{c.client_address}</div>
                 )}
               </div>
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLockBodyScroll } from '../lib/useLockBodyScroll.js'
 
-const EMPTY = { name: '', building: '', address: '', billing: '', contact: '', phone: '', email: '' }
+const EMPTY = { client_name: '', client_address: '', billing_address: '', contact_person: '', phone: '', email: '' }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -41,13 +41,18 @@ export default function ClientModal({ initial, onSave, onDelete, onClose }) {
     return (e) => setForm(f => ({ ...f, [field]: e.target.value }))
   }
 
-const errors = validate(form)
+  const errors = validate(form)
   const hasErrors = Object.keys(errors).length > 0
   const isEdit = !!initial
+  const isDirty = JSON.stringify(form) !== JSON.stringify(initial ?? EMPTY)
+
+  function handleClose() {
+    if (!isDirty || window.confirm('You have unsaved changes. Discard?')) onClose()
+  }
 
   async function handleSave() {
     setTouched({ phone: true, email: true })
-    if (!form.name.trim() || hasErrors) return
+    if (!form.client_name.trim() || hasErrors) return
     setSaving(true)
     await onSave(form)
     setSaving(false)
@@ -61,23 +66,19 @@ const errors = validate(form)
         <div className="form-grid" style={{ gap: 14 }}>
           <div className="field">
             <label>Client / Property Manager Name *</label>
-            <input value={form.name} onChange={set('name')} placeholder="e.g. Milestone Property Management" />
+            <input value={form.client_name} onChange={set('client_name')} placeholder="e.g. Milestone Property Management" />
           </div>
           <div className="field">
-            <label>Building Name</label>
-            <input value={form.building} onChange={set('building')} placeholder="e.g. Markham Gate Investments" />
-          </div>
-          <div className="field">
-            <label>Job Site Address</label>
-            <input value={form.address} onChange={set('address')} placeholder="Street address" />
+            <label>Client Address</label>
+            <input value={form.client_address} onChange={set('client_address')} placeholder="Client address" />
           </div>
           <div className="field">
             <label>Billing Address</label>
-            <input value={form.billing} onChange={set('billing')} placeholder="Billing address" />
+            <input value={form.billing_address} onChange={set('billing_address')} placeholder="Billing address" />
           </div>
           <div className="field">
             <label>Contact Person</label>
-            <input value={form.contact} onChange={set('contact')} placeholder="Contact name" />
+            <input value={form.contact_person} onChange={set('contact_person')} placeholder="Contact name" />
           </div>
           <div className="field">
             <label>Phone</label>
@@ -108,11 +109,11 @@ const errors = validate(form)
         </div>
 
         <div className="modal-actions">
-          <button className="btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn-ghost" onClick={handleClose}>Cancel</button>
           {isEdit && onDelete && (
             <button className="btn-danger" onClick={onDelete}>Delete</button>
           )}
-          <button className="btn-primary" onClick={handleSave} disabled={!form.name.trim() || saving}>
+          <button className="btn-primary" onClick={handleSave} disabled={!form.client_name.trim() || saving}>
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>

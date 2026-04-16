@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { LEAK_SOURCES } from '../lib/constants.js'
 
-export default function ReportPDFPreview({ form, client, reportId, isNew }) {
+export default function ReportPDFPreview({ form, client, site, reportId, isNew }) {
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState(null)
 
@@ -18,7 +18,7 @@ export default function ReportPDFPreview({ form, client, reportId, isNew }) {
       if (!res.ok) throw new Error(`Server error ${res.status}`)
 
       const blob = await res.blob()
-      const filename = `HSX-${(form.job_name || 'Report').replace(/[^a-z0-9]/gi, '-')}-${form.report_date || 'draft'}.pdf`
+      const filename = `HSX-Report-${form.report_date || 'draft'}.pdf`
 
       if (action === 'share') {
         const file = new File([blob], filename, { type: 'application/pdf' })
@@ -57,7 +57,7 @@ export default function ReportPDFPreview({ form, client, reportId, isNew }) {
         background: '#fff', overflow: 'hidden', marginBottom: 16,
         boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
       }}>
-        <HTMLPreview form={form} client={client} />
+        <HTMLPreview form={form} client={client} site={site} />
       </div>
 
       {isNew ? (
@@ -111,7 +111,7 @@ export default function ReportPDFPreview({ form, client, reportId, isNew }) {
 }
 
 /* ─── HTML Preview (live form state, mirrors PDF layout) ─── */
-function HTMLPreview({ form, client }) {
+function HTMLPreview({ form, client, site }) {
   const { before = [], progress = [], after = [] } = form.photos ?? {}
 
   return (
@@ -135,16 +135,20 @@ function HTMLPreview({ form, client }) {
         </div>
       </div>
 
-      <PreviewSection title="Project Information">
+      <PreviewSection title="Client Information">
         <TwoColGrid fields={[
-          ['Job Name',                    form.job_name],
-          ['Customer / Property Manager', client?.name],
-          ['Building Name',               client?.building],
-          ['Job Address',                 client?.address],
-          ['Billing Address',             client?.billing],
-          ['Contact Person',              client?.contact],
+          ['Customer / Property Manager', client?.client_name],
+          ['Client Address',              client?.client_address],
+          ['Billing Address',             client?.billing_address],
+          ['Contact Person',              client?.contact_person],
           ['Phone',                       client?.phone],
           ['Email',                       client?.email],
+        ]} />
+      </PreviewSection>
+
+      <PreviewSection title="Project Information">
+        <TwoColGrid fields={[
+          ['Job Site Address',            site?.job_address],
           ['Supervisor',                  form.supervisor],
           ['PO Number',                   form.po_number],
           ['WO Number',                   form.wo_number],
@@ -185,16 +189,9 @@ function HTMLPreview({ form, client }) {
 
       {form.total !== '' && Number.isFinite(parseFloat(form.total)) && (
         <PreviewSection title="Total">
-          <div style={{
-            padding: '14px 20px', background: '#10243e', color: '#fff',
-            borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          }}>
-            <span style={{ fontSize: 11, color: '#c8a85d', letterSpacing: '0.1em', fontWeight: 700, textTransform: 'uppercase' }}>
-              Total Cost
-            </span>
-            <span style={{ fontSize: 24, fontWeight: 800 }}>
-              {parseFloat(form.total).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
-            </span>
+          <div style={{ fontSize: 13 }}>
+            <span style={{ fontWeight: 700, color: '#10243e' }}>Total: </span>
+            {parseFloat(form.total).toLocaleString('en-US', { style: 'currency', currency: 'CAD' })}
           </div>
         </PreviewSection>
       )}

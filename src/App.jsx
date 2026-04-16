@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom'
 import { isConfigured, supabase } from './lib/supabase.js'
 import ClientsPage from './pages/ClientsPage.jsx'
 import ClientPage from './pages/ClientPage.jsx'
+import SitePage from './pages/SitePage.jsx'
 import ReportPage from './pages/ReportPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import IOSInstallBanner from './components/IOSInstallBanner.jsx'
@@ -27,8 +28,9 @@ export default function App() {
       <Routes>
         <Route path="/" element={<ClientsPage />} />
         <Route path="/clients/:clientId" element={<ClientPage />} />
-        <Route path="/clients/:clientId/reports/new" element={<ReportPage />} />
-        <Route path="/clients/:clientId/reports/:reportId" element={<ReportPage />} />
+        <Route path="/clients/:clientId/sites/:siteId" element={<SitePage />} />
+        <Route path="/clients/:clientId/sites/:siteId/reports/new" element={<ReportPage />} />
+        <Route path="/clients/:clientId/sites/:siteId/reports/:reportId" element={<ReportPage />} />
       </Routes>
     </>
   )

@@ -34,7 +34,7 @@ export default async function handler(req, res) {
 
   const { data: report, error } = await supabase
     .from('reports')
-    .select('*, clients(*)')
+    .select('*, job_sites(*, clients(*))')
     .eq('id', reportId)
     .single()
 
@@ -43,7 +43,9 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: 'Report not found', detail: error?.message })
   }
 
-  const html = generateReportHTML(report, report.clients)
+  const site = report.job_sites
+  const client = site?.clients
+  const html = generateReportHTML(report, client, site)
 
   let browser
   try {
@@ -72,7 +74,7 @@ export default async function handler(req, res) {
       margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' },
     })
 
-    const safeName = `HSX-${(report.job_name || 'Report').replace(/[^a-z0-9]/gi, '-')}-${report.report_date || 'draft'}.pdf`
+    const safeName = `HSX-Report-${report.report_date || 'draft'}.pdf`
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`)
     res.send(Buffer.from(pdf))

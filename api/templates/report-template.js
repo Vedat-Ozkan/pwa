@@ -132,7 +132,7 @@ const CSS = `
   .photo-cell { break-inside: avoid; }
   .photo-wrap {
     width: 100%;
-    height: 410px;
+    height: 380px;
     background: ${SOFT};
     overflow: hidden;
     display: flex;
@@ -147,36 +147,18 @@ const CSS = `
     display: block;
   }
   .photo-caption {
-    font-size: 8.5px;
+    font-size: 10px;
     color: ${MUTED};
     text-align: center;
-    margin-top: 4px;
+    margin-top: 5px;
     line-height: 1.4;
-    min-height: 24px;
+    min-height: 30px;
   }
 
   /* ── Total ── */
   .total-section { break-inside: avoid; }
-  .total-box {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 20px;
-    background: ${NAVY};
-    color: #fff;
-    border-radius: 4px;
-  }
-  .total-label {
-    font-size: 9px;
-    font-weight: 700;
-    color: ${GOLD};
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-  .total-value {
-    font-size: 20px;
-    font-weight: 800;
-  }
+  .total-line { font-size: 10px; }
+  .total-label { font-weight: 700; color: ${NAVY}; }
 
   /* ── Signature ── */
   .sig-section { break-inside: avoid; }
@@ -226,20 +208,29 @@ function fieldGrid(fields) {
   </div>`
 }
 
-function projectSection(report, client) {
+function clientSection(client) {
+  return `
+    <div class="section">
+      <div class="section-title">Client Information</div>
+      ${fieldGrid([
+        ['Customer / Property Manager', client?.client_name],
+        ['Client Address',              client?.client_address],
+        ['Billing Address',             client?.billing_address],
+        ['Contact Person',              client?.contact_person],
+        ['Phone',                       client?.phone],
+        ['Email',                       client?.email],
+      ])}
+    </div>
+  `
+}
+
+function projectSection(report, site) {
   return `
     <div class="section">
       <div class="section-title">Project Information</div>
       ${fieldGrid([
-        ['Job Name',                    report.job_name],
+        ['Job Site Address',            site?.job_address],
         ['Report Date',                 formatDate(report.report_date)],
-        ['Customer / Property Manager', client?.name],
-        ['Building Name',               client?.building],
-        ['Job Site Address',            client?.address],
-        ['Billing Address',             client?.billing],
-        ['Contact Person',              client?.contact],
-        ['Phone',                       client?.phone],
-        ['Email',                       client?.email],
         ['Supervisor',                  report.supervisor],
         ['PO Number',                   report.po_number],
         ['WO Number',                   report.wo_number],
@@ -312,14 +303,11 @@ function photosSection(photos) {
 function totalSection(total) {
   const num = parseFloat(total)
   if (!Number.isFinite(num)) return ''
-  const formatted = num.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+  const formatted = num.toLocaleString('en-US', { style: 'currency', currency: 'CAD' })
   return `
     <div class="section total-section">
       <div class="section-title">Total</div>
-      <div class="total-box">
-        <span class="total-label">Total Cost</span>
-        <span class="total-value">${esc(formatted)}</span>
-      </div>
+      <div class="total-line"><span class="total-label">Total:</span> ${esc(formatted)}</div>
     </div>
   `
 }
@@ -338,7 +326,7 @@ function signatureSection(signedBy) {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export function generateReportHTML(report, client) {
+export function generateReportHTML(report, client, site) {
   const d = report.data ?? {}
 
   return `<!DOCTYPE html>
@@ -354,7 +342,8 @@ export function generateReportHTML(report, client) {
 </head>
 <body>
   ${header(report, client)}
-  ${projectSection(report, client)}
+  ${clientSection(client)}
+  ${projectSection(report, site)}
   ${leakSection(d.leakSources)}
   ${textSection('Site Conditions / Findings', d.findings)}
   ${textSection('Work Performed', d.workPerformed)}

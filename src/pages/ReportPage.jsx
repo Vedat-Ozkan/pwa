@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import PhotoSection from '../components/PhotoSection.jsx'
@@ -16,7 +16,6 @@ function localToday() {
 }
 
 const EMPTY_FORM = {
-  job_name: '',
   report_date: localToday(),
   supervisor: '',
   po_number: '',
@@ -36,17 +35,19 @@ const EMPTY_FORM = {
 function formatMoney(val) {
   const num = parseFloat(val)
   if (!Number.isFinite(num)) return ''
-  return num.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+  return num.toLocaleString('en-US', { style: 'currency', currency: 'CAD' })
 }
 
 export default function ReportPage() {
-  const { clientId, reportId } = useParams()
+  const { clientId, siteId, reportId } = useParams()
   const isNew = reportId === undefined
   const navigate = useNavigate()
   const { toast, show } = useToast()
 
   const [client, setClient] = useState(null)
+  const [site, setSite] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
+  const savedForm = useRef(EMPTY_FORM)
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
   const [reportDbId] = useState(() => {
@@ -63,13 +64,14 @@ export default function ReportPage() {
   useEffect(() => {
     supabase.from('clients').select('*').eq('id', clientId).single()
       .then(({ data }) => { if (data) setClient(data) })
+    supabase.from('job_sites').select('*').eq('id', siteId).single()
+      .then(({ data }) => { if (data) setSite(data) })
 
     if (!isNew) {
       supabase.from('reports').select('*').eq('id', reportId).single()
         .then(({ data }) => {
           if (data) {
-            setForm({
-              job_name: data.job_name ?? '',
+            const loaded = {
               report_date: data.report_date ?? '',
               supervisor: data.supervisor ?? '',
               po_number: data.po_number ?? '',
@@ -84,12 +86,32 @@ export default function ReportPage() {
               signedBy: data.data?.signedBy ?? '',
               total: data.data?.total ?? '',
               photos: data.data?.photos ?? { before: [], progress: [], after: [] },
-            })
+            }
+            setForm(loaded)
+            savedForm.current = loaded
           }
           setLoading(false)
         })
     }
-  }, [clientId, reportId, isNew])
+  }, [clientId, siteId, reportId, isNew])
+
+  const isDirty = JSON.stringify(form) !== JSON.stringify(savedForm.current)
+
+  useEffect(() => {
+    if (!isDirty) return
+    const handler = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty])
+
+  const confirmLeave = useCallback(() => {
+    if (!isDirty) return true
+    return window.confirm('You have unsaved changes. Leave without saving?')
+  }, [isDirty])
+
+  function goBack() {
+    if (confirmLeave()) navigate(`/clients/${clientId}/sites/${siteId}`)
+  }
 
   function setField(field) {
     return (e) => setForm(f => ({ ...f, [field]: e.target.value }))
@@ -111,8 +133,7 @@ export default function ReportPage() {
   async function save() {
     setSaving(true)
     const payload = {
-      client_id: clientId,
-      job_name: form.job_name,
+      job_site_id: siteId,
       report_date: form.report_date || null,
       supervisor: form.supervisor,
       po_number: form.po_number,
@@ -135,12 +156,13 @@ export default function ReportPage() {
     if (isNew) {
       ;({ error } = await supabase.from('reports').insert({ id: effectiveReportId, ...payload }))
       if (!error) {
+        savedForm.current = form
         show('Report saved')
-        navigate(`/clients/${clientId}/reports/${effectiveReportId}`, { replace: true })
+        navigate(`/clients/${clientId}/sites/${siteId}/reports/${effectiveReportId}`, { replace: true })
       }
     } else {
       ;({ error } = await supabase.from('reports').update(payload).eq('id', reportId))
-      if (!error) show('Saved')
+      if (!error) { savedForm.current = form; show('Saved') }
     }
 
     if (error) show('Error saving — check connection')
@@ -151,7 +173,7 @@ export default function ReportPage() {
     return (
       <>
         <div className="topbar">
-          <button className="btn-back" onClick={() => navigate(`/clients/${clientId}`)}>‹</button>
+          <button className="btn-back" onClick={goBack}>‹</button>
         </div>
         <p style={{ textAlign: 'center', padding: 40, color: 'var(--muted)' }}>Loading…</p>
       </>
@@ -163,9 +185,9 @@ export default function ReportPage() {
       <Toast toast={toast} />
 
       <header className="topbar">
-        <button className="btn-back" onClick={() => navigate(`/clients/${clientId}`)}>‹</button>
+        <button className="btn-back" onClick={goBack}>‹</button>
         <span className="topbar-title">
-          {client?.name ?? ''}{form.job_name ? ` — ${form.job_name}` : ''}
+          {client?.client_name ?? ''}{site?.job_address ? ` — ${site.job_address}` : ''}
         </span>
         <button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
       </header>
@@ -175,9 +197,6 @@ export default function ReportPage() {
         {/* ── Project Information ── */}
         <Section title="Project Information">
           <div className="form-grid form-grid-2">
-            <Field label="Job Name">
-              <input value={form.job_name} onChange={setField('job_name')} placeholder="e.g. Roof Leak Repair" />
-            </Field>
             <Field label="Report Date">
               <input type="date" value={form.report_date} onChange={setField('report_date')} />
             </Field>
@@ -373,7 +392,7 @@ export default function ReportPage() {
         </div>
 
         <div style={{ margin: '0 -16px', background: 'var(--navy)', padding: '0 16px 120px' }}>
-          <ReportPDFPreview form={form} client={client} reportId={effectiveReportId} isNew={isNew} />
+          <ReportPDFPreview form={form} client={client} site={site} reportId={effectiveReportId} isNew={isNew} />
         </div>
 
       </main>
@@ -384,7 +403,7 @@ export default function ReportPage() {
           <button
             className="btn-ghost"
             style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.3)' }}
-            onClick={() => navigate(`/clients/${clientId}`)}
+            onClick={goBack}
           >
             Back
           </button>
