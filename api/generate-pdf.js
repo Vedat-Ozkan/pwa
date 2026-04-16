@@ -5,7 +5,7 @@ import { generateReportHTML } from './templates/report-template.js'
 
 // Hosted Chromium binary — update version to match @sparticuz/chromium-min installed
 const CHROMIUM_URL =
-  'https://github.com/Sparticuz/chromium/releases/download/v147.0.0/chromium-v147.0.0-pack.tar'
+  'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     } else {
       // Local dev: use full puppeteer with its bundled Chrome (npm install -D puppeteer)
       const { default: fullPuppeteer } = await import('puppeteer')
-      browser = await fullPuppeteer.launch({ headless: true })
+      browser = await fullPuppeteer.launch({ headless: 'new' })
     }
 
     const page = await browser.newPage()
