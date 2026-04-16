@@ -73,7 +73,7 @@ export default function ClientsPage() {
       <header className="hero">
         <div className="hero-inner">
           <div className="hero-brand">
-            <img src="https://hsxroofing.com/wp-content/uploads/2025/03/logo_hsx.png"
+            <img src="/logo_hsx.png"
               alt="HSX Roofing" className="hero-logo" />
             <div>
               <div className="hero-title">HSX Roofing</div>

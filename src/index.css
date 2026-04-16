@@ -237,6 +237,9 @@ select {
   display: flex;
   align-items: flex-end;
   padding: 0;
+  overflow: hidden;
+  touch-action: none;
+  -webkit-overflow-scrolling: none;
 }
 @media (min-width: 600px) {
   .overlay { align-items: center; justify-content: center; padding: 24px; }

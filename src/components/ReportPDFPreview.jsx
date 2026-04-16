@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { LEAK_SOURCES } from '../lib/constants.js'
 
 export default function ReportPDFPreview({ form, client, site, reportId, isNew }) {
@@ -111,18 +111,51 @@ export default function ReportPDFPreview({ form, client, site, reportId, isNew }
 }
 
 /* ─── HTML Preview (live form state, mirrors PDF layout) ─── */
+const PAGE_WIDTH = 720   // 7.5in × 96dpi
+const PAGE_HEIGHT = 960  // 10in × 96dpi
+
 function HTMLPreview({ form, client, site }) {
   const { before = [], progress = [], after = [] } = form.photos ?? {}
+  const wrapperRef = useRef(null)
+  const contentRef = useRef(null)
+  const lastKey = useRef('')
+  const [layout, setLayout] = useState({ scale: 1, height: 'auto', breaks: [] })
+
+  useEffect(() => {
+    function measure() {
+      if (!contentRef.current || !wrapperRef.current) return
+      const w = wrapperRef.current.clientWidth
+      const s = w / PAGE_WIDTH
+      const h = contentRef.current.scrollHeight
+      const key = `${w}:${h}`
+      if (key === lastKey.current) return
+      lastKey.current = key
+      const breaks = []
+      for (let y = PAGE_HEIGHT; y < h; y += PAGE_HEIGHT) breaks.push(y * s)
+      setLayout({ scale: s, height: h * s, breaks })
+    }
+    measure()
+    const imgs = contentRef.current?.querySelectorAll('img') ?? []
+    imgs.forEach(img => img.addEventListener('load', measure))
+    return () => imgs.forEach(img => img.removeEventListener('load', measure))
+  })
 
   return (
-    <div style={{ padding: '24px 28px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+    <div ref={wrapperRef} style={{ position: 'relative', overflow: 'hidden', height: layout.height }}>
+      <div ref={contentRef} style={{
+        width: PAGE_WIDTH,
+        transformOrigin: 'top left',
+        transform: `scale(${layout.scale})`,
+        padding: '24px 28px',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      }}>
       {/* Header */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         borderBottom: '2px solid #d9e0e7', paddingBottom: 14, marginBottom: 18,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <img src="https://hsxroofing.com/wp-content/uploads/2025/03/logo_hsx.png"
+          <img src="/logo_hsx.png"
             alt="HSX" style={{ height: 46, background: '#fff', borderRadius: 6, padding: 3 }} />
           <div>
             <div style={{ fontSize: 16, fontWeight: 800, color: '#10243e' }}>HSX Roofing Field Report</div>
@@ -206,6 +239,19 @@ function HTMLPreview({ form, client, site }) {
           </div>
         </PreviewSection>
       )}
+      </div>
+      {layout.breaks.map((y, i) => (
+        <div key={i} style={{
+          position: 'absolute', left: 0, right: 0, top: y,
+          borderTop: '2px solid #000',
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '2px 8px',
+        }}>
+          <span style={{ fontSize: 9, color: '#000', fontWeight: 700, opacity: 0.5 }}>
+            Page {i + 2}
+          </span>
+        </div>
+      ))}
     </div>
   )
 }
@@ -246,14 +292,22 @@ function PhotoPreviewGrid({ photos }) {
   const rows = []
   for (let i = 0; i < photos.length; i += 2) rows.push(photos.slice(i, i + 2))
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {rows.map((row, ri) => (
-        <div key={ri} style={{ display: 'grid', gridTemplateColumns: row.length === 1 ? '1fr' : '1fr 1fr', gap: 8 }}>
+        <div key={ri} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {row.map((p, pi) => (
             <div key={pi}>
-              <img src={p.url} alt={p.caption || `Photo ${pi + 1}`}
-                style={{ width: '100%', height: 160, objectFit: 'contain', borderRadius: 8, background: '#f1f3f7', display: 'block' }} />
-              {p.caption && <div style={{ fontSize: 11, color: '#667487', marginTop: 3, textAlign: 'center' }}>{p.caption}</div>}
+              <div style={{
+                width: '100%', height: 380, background: '#f4f6f8',
+                overflow: 'hidden', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', borderRadius: 3,
+              }}>
+                <img src={p.url} alt={p.caption || `Photo ${pi + 1}`}
+                  style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
+              </div>
+              <div style={{ fontSize: 10, color: '#667487', marginTop: 5, textAlign: 'center', lineHeight: 1.4, minHeight: 30 }}>
+                {p.caption || ''}
+              </div>
             </div>
           ))}
         </div>

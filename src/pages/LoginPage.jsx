@@ -30,7 +30,7 @@ export default function LoginPage() {
         {/* Brand */}
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
           <img
-            src="https://hsxroofing.com/wp-content/uploads/2025/03/logo_hsx.png"
+            src="/logo_hsx.png"
             alt="HSX Roofing"
             style={{ height: 72, borderRadius: 14, padding: 8, background: 'rgba(255,255,255,0.08)', marginBottom: 18 }}
           />

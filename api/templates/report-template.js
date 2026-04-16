@@ -175,12 +175,12 @@ const CSS = `
 
 // ── Section builders ─────────────────────────────────────────────────────────
 
-function header(report, client) {
+function header(report, client, logoSrc) {
   return `
     <div class="header">
       <div class="header-left">
         <img class="header-logo"
-          src="https://hsxroofing.com/wp-content/uploads/2025/03/logo_hsx.png"
+          src="${logoSrc}"
           alt="HSX Roofing" />
         <div>
           <div class="header-title">HSX Roofing Field Report</div>
@@ -326,7 +326,7 @@ function signatureSection(signedBy) {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export function generateReportHTML(report, client, site) {
+export function generateReportHTML(report, client, site, logoSrc) {
   const d = report.data ?? {}
 
   return `<!DOCTYPE html>
@@ -341,7 +341,7 @@ export function generateReportHTML(report, client, site) {
   <style>${CSS}</style>
 </head>
 <body>
-  ${header(report, client)}
+  ${header(report, client, logoSrc)}
   ${clientSection(client)}
   ${projectSection(report, site)}
   ${leakSection(d.leakSources)}

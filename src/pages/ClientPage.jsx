@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabase.js'
 import ClientModal from '../components/ClientModal.jsx'
 import SiteModal from '../components/SiteModal.jsx'
 import { Toast, useToast } from '../components/Toast.jsx'
-import { useLockBodyScroll } from '../lib/useLockBodyScroll.js'
 
 export default function ClientPage() {
   const { clientId } = useParams()
@@ -14,7 +13,6 @@ export default function ClientPage() {
   const [loading, setLoading] = useState(true)
   const [editModal, setEditModal] = useState(false)
   const [siteModal, setSiteModal] = useState(null) // null | 'new' | site object
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const { toast, show } = useToast()
 
   useEffect(() => { fetchAll() }, [clientId])
@@ -52,7 +50,7 @@ export default function ClientPage() {
 
   function deleteSite(siteId) {
     const site = sites.find(s => s.id === siteId)
-    setConfirmDeleteId(null)
+    setSiteModal(null)
     setSites(s => s.filter(x => x.id !== siteId))
 
     let undone = false
@@ -132,7 +130,6 @@ export default function ClientPage() {
               </div>
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                 <button className="btn-ghost btn-sm" onClick={() => setSiteModal(s)}>Edit</button>
-                <button className="btn-danger btn-sm" onClick={() => setConfirmDeleteId(s)}>Delete</button>
                 <button className="btn-navy btn-sm"
                   onClick={() => navigate(`/clients/${clientId}/sites/${s.id}`)}>
                   Open →
@@ -176,35 +173,7 @@ export default function ClientPage() {
         />
       )}
 
-      {confirmDeleteId && (
-        <DeleteConfirm
-          site={confirmDeleteId}
-          onConfirm={() => deleteSite(confirmDeleteId.id)}
-          onCancel={() => setConfirmDeleteId(null)}
-        />
-      )}
     </>
-  )
-}
-
-function DeleteConfirm({ site, onConfirm, onCancel }) {
-  useLockBodyScroll()
-  return (
-    <div className="overlay" style={{ alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 300, textAlign: 'center', borderRadius: 'var(--radius)', padding: '24px' }}>
-        <h2 className="modal-title">Delete this site?</h2>
-        <p style={{ fontSize: 14, color: 'var(--muted)', margin: '0 0 6px' }}>
-          {site.job_address || '(no address)'}
-        </p>
-        <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 24px' }}>
-          All reports for this site will be deleted.
-        </p>
-        <div className="modal-actions">
-          <button className="btn-ghost" onClick={onCancel}>Cancel</button>
-          <button className="btn-danger" onClick={onConfirm}>Delete</button>
-        </div>
-      </div>
-    </div>
   )
 }
 

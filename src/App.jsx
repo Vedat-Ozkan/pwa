@@ -45,7 +45,7 @@ function SetupScreen() {
       <div style={{ maxWidth: 480, width: '100%' }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <img
-            src="https://hsxroofing.com/wp-content/uploads/2025/03/logo_hsx.png"
+            src="/logo_hsx.png"
             alt="HSX Roofing"
             style={{ height: 64, borderRadius: 10, padding: 6, background: 'var(--navy)', marginBottom: 16 }}
           />

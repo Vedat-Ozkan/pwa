@@ -45,7 +45,9 @@ export default async function handler(req, res) {
 
   const site = report.job_sites
   const client = site?.clients
-  const html = generateReportHTML(report, client, site)
+  const protocol = req.headers['x-forwarded-proto'] || 'https'
+  const logoSrc = `${protocol}://${req.headers.host}/logo_hsx.png`
+  const html = generateReportHTML(report, client, site, logoSrc)
 
   let browser
   try {
