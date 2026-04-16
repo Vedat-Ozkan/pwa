@@ -5,7 +5,7 @@ import { generateReportHTML } from './templates/report-template.js'
 
 // Hosted Chromium binary — update version to match @sparticuz/chromium-min installed
 const CHROMIUM_URL =
-  'https://github.com/Sparticuz/chromium/releases/download/v131.0.0/chromium-v131.0.0-pack.tar'
+  'https://github.com/Sparticuz/chromium/releases/download/v147.0.0/chromium-v147.0.0-pack.tar'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -27,7 +27,10 @@ export default async function handler(req, res) {
     .eq('id', reportId)
     .single()
 
-  if (error || !report) return res.status(404).json({ error: 'Report not found' })
+  if (error || !report) {
+    console.error('Supabase fetch error:', error)
+    return res.status(404).json({ error: 'Report not found', detail: error?.message })
+  }
 
   const html = generateReportHTML(report, report.clients)
 
@@ -62,6 +65,9 @@ export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`)
     res.send(Buffer.from(pdf))
+  } catch (err) {
+    console.error('PDF generation failed:', err)
+    return res.status(500).json({ error: 'PDF generation failed', detail: err?.message })
   } finally {
     await browser?.close()
   }
