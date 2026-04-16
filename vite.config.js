@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  server: {
+    watch: { ignored: ['**/api/**'] },
+    fs: { deny: ['api'] },
+  },
   test: {
     environment: 'jsdom',
     globals: true,
@@ -10,8 +14,10 @@ export default defineConfig({
     exclude: ['node_modules', 'dist'],
   },
   optimizeDeps: {
-    // @react-pdf/renderer uses a web worker and can trip up Vite's dep scanner
-    include: ['@react-pdf/renderer'],
+    // Only crawl src/ for dep discovery — keeps Vite away from api/ entirely
+    entries: ['./src/**/*.{js,jsx,ts,tsx}'],
+    // Exclude server-only packages — never bundle these for the browser
+    exclude: ['puppeteer-core', 'puppeteer', '@sparticuz/chromium-min'],
   },
   plugins: [
     react(),
@@ -35,6 +41,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globIgnores: ['api/**', '**/api/**'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,

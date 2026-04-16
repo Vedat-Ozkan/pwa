@@ -1,25 +1,30 @@
 import { useState } from 'react'
-import { pdf } from '@react-pdf/renderer'
-import { ReportDocument } from '../lib/reportPdf.jsx'
 import { LEAK_SOURCES } from '../lib/constants.js'
 
-
-export default function ReportPDFPreview({ form, client, clientId }) {
+export default function ReportPDFPreview({ form, client, reportId, isNew }) {
   const [generating, setGenerating] = useState(false)
+  const [error, setError] = useState(null)
 
   async function generate(action) {
     setGenerating(true)
+    setError(null)
     try {
-      const doc = <ReportDocument form={form} client={client} />
-      const blob = await pdf(doc).toBlob()
-      const filename = `HSX-Report-${(form.job_name || 'Untitled').replace(/[^a-z0-9]/gi, '-')}-${form.report_date || 'draft'}.pdf`
+      const res = await fetch('/api/generate-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportId }),
+      })
+
+      if (!res.ok) throw new Error(`Server error ${res.status}`)
+
+      const blob = await res.blob()
+      const filename = `HSX-${(form.job_name || 'Report').replace(/[^a-z0-9]/gi, '-')}-${form.report_date || 'draft'}.pdf`
 
       if (action === 'share') {
         const file = new File([blob], filename, { type: 'application/pdf' })
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({ files: [file], title: filename })
         } else {
-          // Fallback: open blob URL so the browser/OS can handle it
           window.open(URL.createObjectURL(blob), '_blank')
         }
       } else {
@@ -33,11 +38,12 @@ export default function ReportPDFPreview({ form, client, clientId }) {
           a.download = filename
           a.click()
         }
+        URL.revokeObjectURL(url)
       }
     } catch (err) {
       if (err?.name !== 'AbortError') {
-        console.error('PDF generation error:', err)
-        alert('Error generating PDF. Please try again.')
+        console.error('PDF error:', err)
+        setError('Failed to generate PDF. Try again.')
       }
     }
     setGenerating(false)
@@ -45,7 +51,7 @@ export default function ReportPDFPreview({ form, client, clientId }) {
 
   return (
     <div>
-      {/* HTML preview that mirrors the PDF layout */}
+      {/* HTML preview — live form state */}
       <div style={{
         border: '1px solid var(--line)', borderRadius: 12,
         background: '#fff', overflow: 'hidden', marginBottom: 16,
@@ -54,63 +60,57 @@ export default function ReportPDFPreview({ form, client, clientId }) {
         <HTMLPreview form={form} client={client} />
       </div>
 
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button
-          type="button"
-          onClick={() => generate('download')}
-          disabled={generating}
-          style={{
-            flex: 1,
-            background: '#2860b8',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 12,
-            padding: '13px 16px',
-            fontSize: 15,
-            fontWeight: 700,
-            cursor: generating ? 'not-allowed' : 'pointer',
-            opacity: generating ? 0.6 : 1,
-          }}
-        >
-          {generating ? 'Generating…' : '↓ Download'}
-        </button>
-        <button
-          type="button"
-          onClick={() => generate('share')}
-          disabled={generating}
-          style={{
-            flex: 1,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-            background: '#1a7d35',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 12,
-            padding: '13px 16px',
-            fontSize: 15,
-            fontWeight: 700,
-            cursor: generating ? 'not-allowed' : 'pointer',
-            opacity: generating ? 0.6 : 1,
-          }}
-        >
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-            <polyline points="16 6 12 2 8 6"/>
-            <line x1="12" y1="2" x2="12" y2="15"/>
-          </svg>
-          {generating ? 'Generating…' : 'Share'}
-        </button>
-      </div>
-
-      {!navigator.share && /iphone|ipad|ipod/i.test(navigator.userAgent) && (
-        <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, textAlign: 'center' }}>
-          On iOS: PDF will open in Safari — tap Share to save or send.
+      {isNew ? (
+        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>
+          Save the report first to download or share the PDF.
         </p>
+      ) : (
+        <>
+          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', textAlign: 'center', marginBottom: 10 }}>
+            PDF reflects the last saved version — save before generating to include latest changes.
+          </p>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => generate('download')}
+              disabled={generating}
+              style={{
+                flex: 1, background: '#2860b8', color: '#fff', border: 'none',
+                borderRadius: 12, padding: '13px 16px', fontSize: 15, fontWeight: 700,
+                cursor: generating ? 'not-allowed' : 'pointer', opacity: generating ? 0.6 : 1,
+              }}
+            >
+              {generating ? 'Generating…' : '↓ Download'}
+            </button>
+            <button
+              type="button"
+              onClick={() => generate('share')}
+              disabled={generating}
+              style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                background: '#1a7d35', color: '#fff', border: 'none',
+                borderRadius: 12, padding: '13px 16px', fontSize: 15, fontWeight: 700,
+                cursor: generating ? 'not-allowed' : 'pointer', opacity: generating ? 0.6 : 1,
+              }}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                <polyline points="16 6 12 2 8 6"/>
+                <line x1="12" y1="2" x2="12" y2="15"/>
+              </svg>
+              {generating ? 'Generating…' : 'Share'}
+            </button>
+          </div>
+          {error && (
+            <p style={{ fontSize: 12, color: '#f87171', textAlign: 'center', marginTop: 8 }}>{error}</p>
+          )}
+        </>
       )}
     </div>
   )
 }
 
-/* ─── HTML Preview ─── */
+/* ─── HTML Preview (live form state, mirrors PDF layout) ─── */
 function HTMLPreview({ form, client }) {
   const { before = [], progress = [], after = [] } = form.photos ?? {}
 
@@ -123,36 +123,36 @@ function HTMLPreview({ form, client }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <img src="https://hsxroofing.com/wp-content/uploads/2025/03/logo_hsx.png"
-            alt="HSX" style={{ height: 52, background: '#fff', borderRadius: 6, padding: 3 }} />
+            alt="HSX" style={{ height: 46, background: '#fff', borderRadius: 6, padding: 3 }} />
           <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: '#10243e' }}>HSX Roofing Field Report</div>
-            <div style={{ fontSize: 12, color: '#667487', marginTop: 2 }}>Prepared by HSX Roofing Inc.</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: '#10243e' }}>HSX Roofing Field Report</div>
+            <div style={{ fontSize: 11, color: '#667487', marginTop: 2 }}>Prepared by HSX Roofing Inc.</div>
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 11, color: '#667487' }}>Report Date</div>
+          <div style={{ fontSize: 10, color: '#667487' }}>Report Date</div>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#10243e' }}>{form.report_date || '—'}</div>
         </div>
       </div>
 
-      {/* Project Information */}
       <PreviewSection title="Project Information">
         <TwoColGrid fields={[
-          ['Job Name', form.job_name],
+          ['Job Name',                    form.job_name],
           ['Customer / Property Manager', client?.name],
-          ['Building Name', client?.building],
-          ['Job Address', client?.address],
-          ['Billing Address', client?.billing],
-          ['Contact Person', client?.contact],
-          ['Phone', client?.phone],
-          ['Email', client?.email],
-          ['Supervisor', form.supervisor],
-          ['PO Number', form.po_number],
-          ['WO Number', form.wo_number],
+          ['Building Name',               client?.building],
+          ['Job Address',                 client?.address],
+          ['Billing Address',             client?.billing],
+          ['Contact Person',              client?.contact],
+          ['Phone',                       client?.phone],
+          ['Email',                       client?.email],
+          ['Supervisor',                  form.supervisor],
+          ['PO Number',                   form.po_number],
+          ['WO Number',                   form.wo_number],
+          ['Roof System Type',            form.roofType],
+          ['Service Type',                form.serviceType],
         ]} />
       </PreviewSection>
 
-      {/* Leak Source — all options, checked/unchecked */}
       <PreviewSection title="Leak Source">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px 8px' }}>
           {LEAK_SOURCES.map(l => {
@@ -167,58 +167,21 @@ function HTMLPreview({ form, client }) {
                 }}>
                   {checked && <span style={{ color: '#fff', fontSize: 9, lineHeight: 1, fontWeight: 900 }}>✓</span>}
                 </div>
-                <span style={{
-                  fontSize: 12,
-                  color: checked ? '#10243e' : '#9eaab6',
-                  fontWeight: checked ? 700 : 400,
-                }}>{l}</span>
+                <span style={{ fontSize: 12, color: checked ? '#10243e' : '#9eaab6', fontWeight: checked ? 700 : 400 }}>{l}</span>
               </div>
             )
           })}
         </div>
       </PreviewSection>
 
-      {form.findings && (
-        <PreviewSection title="Site Conditions / Findings">
-          <p style={{ margin: 0, fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{form.findings}</p>
-        </PreviewSection>
-      )}
+      {form.findings     && <PreviewSection title="Site Conditions / Findings"><BodyText>{form.findings}</BodyText></PreviewSection>}
+      {form.workPerformed && <PreviewSection title="Work Performed"><BodyText>{form.workPerformed}</BodyText></PreviewSection>}
+      {form.materials    && <PreviewSection title="Materials Used"><BodyText>{form.materials}</BodyText></PreviewSection>}
+      {form.notes        && <PreviewSection title="Notes / Recommendations"><BodyText>{form.notes}</BodyText></PreviewSection>}
 
-      {form.workPerformed && (
-        <PreviewSection title="Work Performed">
-          <p style={{ margin: 0, fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{form.workPerformed}</p>
-        </PreviewSection>
-      )}
-
-      {form.materials && (
-        <PreviewSection title="Materials Used">
-          <p style={{ margin: 0, fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{form.materials}</p>
-        </PreviewSection>
-      )}
-
-      {form.notes && (
-        <PreviewSection title="Notes / Recommendations">
-          <p style={{ margin: 0, fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{form.notes}</p>
-        </PreviewSection>
-      )}
-
-      {before.length > 0 && (
-        <PreviewSection title="Before Photos">
-          <PhotoPreviewGrid photos={before} />
-        </PreviewSection>
-      )}
-
-      {progress.length > 0 && (
-        <PreviewSection title="Progress Photos">
-          <PhotoPreviewGrid photos={progress} />
-        </PreviewSection>
-      )}
-
-      {after.length > 0 && (
-        <PreviewSection title="After Photos">
-          <PhotoPreviewGrid photos={after} />
-        </PreviewSection>
-      )}
+      {before.length > 0   && <PreviewSection title="Before Photos"><PhotoPreviewGrid photos={before} /></PreviewSection>}
+      {progress.length > 0 && <PreviewSection title="Progress Photos"><PhotoPreviewGrid photos={progress} /></PreviewSection>}
+      {after.length > 0    && <PreviewSection title="After Photos"><PhotoPreviewGrid photos={after} /></PreviewSection>}
 
       {form.signedBy && (
         <PreviewSection title="Signature">
@@ -238,9 +201,9 @@ function PreviewSection({ title, children }) {
   return (
     <div style={{ marginBottom: 18 }}>
       <div style={{
-        fontSize: 12, fontWeight: 800, color: '#10243e',
+        fontSize: 11, fontWeight: 800, color: '#10243e',
         borderBottom: '1px solid #d9e0e7', paddingBottom: 5, marginBottom: 10,
-        textTransform: 'uppercase', letterSpacing: '0.04em',
+        textTransform: 'uppercase', letterSpacing: '0.05em',
       }}>{title}</div>
       {children}
     </div>
@@ -254,9 +217,7 @@ function TwoColGrid({ fields }) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
       {filled.map(([label, value]) => (
         <div key={label}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#667487', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
-            {label}
-          </div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: '#667487', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{label}</div>
           <div style={{ fontSize: 13, color: '#1d2733' }}>{value}</div>
         </div>
       ))}
@@ -264,33 +225,22 @@ function TwoColGrid({ fields }) {
   )
 }
 
-function PhotoPreviewGrid({ photos }) {
-  if (photos.length === 1) {
-    return (
-      <div>
-        <img src={photos[0].url} alt={photos[0].caption || 'Photo'}
-          style={{ width: '100%', maxHeight: 200, objectFit: 'contain', borderRadius: 8, background: '#f1f3f7' }} />
-        {photos[0].caption && (
-          <div style={{ fontSize: 12, color: '#667487', marginTop: 4, textAlign: 'center' }}>{photos[0].caption}</div>
-        )}
-      </div>
-    )
-  }
+function BodyText({ children }) {
+  return <p style={{ margin: 0, fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{children}</p>
+}
 
+function PhotoPreviewGrid({ photos }) {
   const rows = []
   for (let i = 0; i < photos.length; i += 2) rows.push(photos.slice(i, i + 2))
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {rows.map((row, ri) => (
-        <div key={ri} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div key={ri} style={{ display: 'grid', gridTemplateColumns: row.length === 1 ? '1fr' : '1fr 1fr', gap: 8 }}>
           {row.map((p, pi) => (
             <div key={pi}>
               <img src={p.url} alt={p.caption || `Photo ${pi + 1}`}
                 style={{ width: '100%', height: 160, objectFit: 'contain', borderRadius: 8, background: '#f1f3f7', display: 'block' }} />
-              {p.caption && (
-                <div style={{ fontSize: 12, color: '#667487', marginTop: 3, textAlign: 'center' }}>{p.caption}</div>
-              )}
+              {p.caption && <div style={{ fontSize: 11, color: '#667487', marginTop: 3, textAlign: 'center' }}>{p.caption}</div>}
             </div>
           ))}
         </div>

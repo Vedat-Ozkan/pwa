@@ -1,9 +1,9 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import PhotoSection from '../components/PhotoSection.jsx'
 import { Toast, useToast } from '../components/Toast.jsx'
-import ErrorBoundary from '../components/ErrorBoundary.jsx'
+import ReportPDFPreview from '../components/ReportPDFPreview.jsx'
 import { ROOF_TYPES, SERVICE_TYPES, LEAK_SOURCES } from '../lib/constants.js'
 
 function localToday() {
@@ -14,8 +14,6 @@ function localToday() {
     String(d.getDate()).padStart(2, '0'),
   ].join('-')
 }
-
-const ReportPDFPreview = lazy(() => import('../components/ReportPDFPreview.jsx'))
 
 const EMPTY_FORM = {
   job_name: '',
@@ -337,13 +335,7 @@ export default function ReportPage() {
         </div>
 
         <div style={{ margin: '0 -16px', background: 'var(--navy)', padding: '0 16px 120px' }}>
-          <ErrorBoundary fallback={
-            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>PDF preview failed to load. Try downloading directly.</p>
-          }>
-            <Suspense fallback={<p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>Loading PDF renderer…</p>}>
-              <ReportPDFPreview form={form} client={client} clientId={clientId} />
-            </Suspense>
-          </ErrorBoundary>
+          <ReportPDFPreview form={form} client={client} reportId={effectiveReportId} isNew={isNew} />
         </div>
 
       </main>

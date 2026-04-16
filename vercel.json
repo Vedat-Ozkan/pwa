@@ -1,7 +1,7 @@
 {
   "rewrites": [
     {
-      "source": "/((?!sw\\.js|workbox-.*\\.js|manifest\\.webmanifest|icon-.*\\.png|logo\\.png|registerSW\\.js).*)",
+      "source": "/((?!sw\\.js|workbox-.*\\.js|manifest\\.webmanifest|icon-.*\\.png|logo\\.png|registerSW\\.js|api\\/.*).*)",
       "destination": "/index.html"
     }
   ],
@@ -19,5 +19,11 @@
         { "key": "Content-Type", "value": "application/manifest+json" }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/generate-pdf.js": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
+  }
 }
