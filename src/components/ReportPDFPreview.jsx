@@ -183,6 +183,22 @@ function HTMLPreview({ form, client }) {
       {progress.length > 0 && <PreviewSection title="Progress Photos"><PhotoPreviewGrid photos={progress} /></PreviewSection>}
       {after.length > 0    && <PreviewSection title="After Photos"><PhotoPreviewGrid photos={after} /></PreviewSection>}
 
+      {form.total !== '' && Number.isFinite(parseFloat(form.total)) && (
+        <PreviewSection title="Total">
+          <div style={{
+            padding: '14px 20px', background: '#10243e', color: '#fff',
+            borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <span style={{ fontSize: 11, color: '#c8a85d', letterSpacing: '0.1em', fontWeight: 700, textTransform: 'uppercase' }}>
+              Total Cost
+            </span>
+            <span style={{ fontSize: 24, fontWeight: 800 }}>
+              {parseFloat(form.total).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+            </span>
+          </div>
+        </PreviewSection>
+      )}
+
       {form.signedBy && (
         <PreviewSection title="Signature">
           <div style={{ fontStyle: 'italic', fontSize: 22, fontFamily: 'Georgia, serif', color: '#10243e' }}>

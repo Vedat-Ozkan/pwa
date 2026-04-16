@@ -115,24 +115,24 @@ const CSS = `
   /* ── Body text ── */
   .body-text { font-size: 10px; line-height: 1.6; white-space: pre-wrap; }
 
-  /* ── Photo sections ── */
+  /* ── Photo sections — 2 columns × 2 rows per page ── */
   .photo-group { margin-bottom: 10px; }
   .photo-group-title {
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
     color: ${NAVY};
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     break-after: avoid;
   }
   .photo-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    gap: 10px;
   }
   .photo-cell { break-inside: avoid; }
   .photo-wrap {
     width: 100%;
-    height: 210px;
+    height: 410px;
     background: ${SOFT};
     overflow: hidden;
     display: flex;
@@ -147,12 +147,35 @@ const CSS = `
     display: block;
   }
   .photo-caption {
-    font-size: 7.5px;
+    font-size: 8.5px;
     color: ${MUTED};
     text-align: center;
-    margin-top: 3px;
+    margin-top: 4px;
     line-height: 1.4;
-    min-height: 18px;
+    min-height: 24px;
+  }
+
+  /* ── Total ── */
+  .total-section { break-inside: avoid; }
+  .total-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    background: ${NAVY};
+    color: #fff;
+    border-radius: 4px;
+  }
+  .total-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: ${GOLD};
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .total-value {
+    font-size: 20px;
+    font-weight: 800;
   }
 
   /* ── Signature ── */
@@ -286,6 +309,21 @@ function photosSection(photos) {
   `
 }
 
+function totalSection(total) {
+  const num = parseFloat(total)
+  if (!Number.isFinite(num)) return ''
+  const formatted = num.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+  return `
+    <div class="section total-section">
+      <div class="section-title">Total</div>
+      <div class="total-box">
+        <span class="total-label">Total Cost</span>
+        <span class="total-value">${esc(formatted)}</span>
+      </div>
+    </div>
+  `
+}
+
 function signatureSection(signedBy) {
   if (!signedBy?.trim()) return ''
   return `
@@ -323,6 +361,7 @@ export function generateReportHTML(report, client) {
   ${textSection('Materials Used', d.materials)}
   ${textSection('Notes / Recommendations', d.notes)}
   ${photosSection(d.photos)}
+  ${totalSection(d.total)}
   ${signatureSection(d.signedBy)}
 </body>
 </html>`

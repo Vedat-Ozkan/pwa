@@ -29,7 +29,14 @@ const EMPTY_FORM = {
   materials: '',
   notes: '',
   signedBy: '',
+  total: '',
   photos: { before: [], progress: [], after: [] },
+}
+
+function formatMoney(val) {
+  const num = parseFloat(val)
+  if (!Number.isFinite(num)) return ''
+  return num.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 }
 
 export default function ReportPage() {
@@ -75,6 +82,7 @@ export default function ReportPage() {
               materials: data.data?.materials ?? '',
               notes: data.data?.notes ?? '',
               signedBy: data.data?.signedBy ?? '',
+              total: data.data?.total ?? '',
               photos: data.data?.photos ?? { before: [], progress: [], after: [] },
             })
           }
@@ -118,6 +126,7 @@ export default function ReportPage() {
         materials: form.materials,
         notes: form.notes,
         signedBy: form.signedBy,
+        total: form.total,
         photos: form.photos,
       },
     }
@@ -287,6 +296,35 @@ export default function ReportPage() {
               />
             </div>
           </div>
+        </Section>
+
+        <div className="divider" />
+
+        {/* ── Total ── */}
+        <Section title="Total">
+          <Field label="Total Cost (USD)">
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              inputMode="decimal"
+              value={form.total}
+              onChange={setField('total')}
+              placeholder="0.00"
+            />
+          </Field>
+          {form.total !== '' && Number.isFinite(parseFloat(form.total)) && (
+            <div style={{
+              marginTop: 12, padding: '14px 18px',
+              border: '1px solid var(--line)', borderRadius: 10, background: '#fafbfd',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <span style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: '0.04em' }}>TOTAL</span>
+              <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--navy)' }}>
+                {formatMoney(form.total)}
+              </span>
+            </div>
+          )}
         </Section>
 
         <div className="divider" />
