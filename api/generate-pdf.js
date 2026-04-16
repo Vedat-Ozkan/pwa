@@ -26,6 +26,10 @@ export default async function handler(req, res) {
   const { reportId } = req.body ?? {}
   if (!reportId) return res.status(400).json({ error: 'reportId is required' })
 
+  if (!process.env.VITE_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return res.status(500).json({ error: 'Missing VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env var' })
+  }
+
   // Service role key bypasses RLS — never expose this to the frontend
   const supabase = createClient(
     process.env.VITE_SUPABASE_URL,

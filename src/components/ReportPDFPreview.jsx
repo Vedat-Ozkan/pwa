@@ -146,7 +146,7 @@ function HTMLPreview({ form, client, site }) {
         width: PAGE_WIDTH,
         transformOrigin: 'top left',
         transform: `scale(${layout.scale})`,
-        padding: '24px 28px',
+        padding: '48px',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}>
       {/* Header */}
@@ -242,14 +242,13 @@ function HTMLPreview({ form, client, site }) {
       </div>
       {layout.breaks.map((y, i) => (
         <div key={i} style={{
-          position: 'absolute', left: 0, right: 0, top: y,
-          borderTop: '2px solid #000',
-          display: 'flex', alignItems: 'center', gap: 6,
-          padding: '2px 8px',
+          position: 'absolute', left: 0, right: 0, top: y - 10,
+          height: 20,
+          background: '#c8cdd3',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 9, fontWeight: 700, color: '#4a5568', letterSpacing: '0.05em',
         }}>
-          <span style={{ fontSize: 9, color: '#000', fontWeight: 700, opacity: 0.5 }}>
-            Page {i + 2}
-          </span>
+          Page {i + 2}
         </div>
       ))}
     </div>
