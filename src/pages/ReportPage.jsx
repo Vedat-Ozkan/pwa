@@ -321,7 +321,7 @@ export default function ReportPage() {
 
         {/* ── Total ── */}
         <Section title="Total">
-          <Field label="Total Cost (USD)">
+          <Field label="Total Cost (CAD)">
             <input
               type="number"
               step="0.01"
