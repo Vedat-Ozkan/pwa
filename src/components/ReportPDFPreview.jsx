@@ -1,52 +1,85 @@
 import { useState, useRef, useEffect } from 'react'
 import { LEAK_SOURCES } from '../lib/constants.js'
 
-export default function ReportPDFPreview({ form, client, site, reportId, isNew }) {
-  const [generating, setGenerating] = useState(false)
-  const [error, setError] = useState(null)
-
-  async function generate(action) {
-    setGenerating(true)
-    setError(null)
-    try {
-      const res = await fetch('/api/generate-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reportId }),
+function runAction(action, { file, url, filename }) {
+  if (action === 'share') {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: filename }).catch(err => {
+        if (err?.name !== 'AbortError') console.error('Share failed:', err)
       })
-
-      if (!res.ok) throw new Error(`Server error ${res.status}`)
-
-      const blob = await res.blob()
-      const filename = `HSX-Report-${form.report_date || 'draft'}.pdf`
-
-      if (action === 'share') {
-        const file = new File([blob], filename, { type: 'application/pdf' })
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: filename })
-        } else {
-          window.open(URL.createObjectURL(blob), '_blank')
-        }
-      } else {
-        const url = URL.createObjectURL(blob)
-        const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
-        if (isIOS) {
-          window.open(url, '_blank')
-        } else {
-          const a = document.createElement('a')
-          a.href = url
-          a.download = filename
-          a.click()
-        }
-        URL.revokeObjectURL(url)
-      }
-    } catch (err) {
-      if (err?.name !== 'AbortError') {
-        console.error('PDF error:', err)
-        setError('Failed to generate PDF. Try again.')
-      }
+    } else {
+      window.open(url, '_blank')
     }
-    setGenerating(false)
+    return
+  }
+  // download
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
+  if (isIOS) {
+    window.open(url, '_blank')
+    return
+  }
+  const objUrl = URL.createObjectURL(file)
+  const a = document.createElement('a')
+  a.href = objUrl
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(objUrl)
+}
+
+export default function ReportPDFPreview({ form, client, site, reportId, isNew, savedVersion = 0 }) {
+  // status: 'idle' | 'loading' | 'ready' | 'error'
+  const [status, setStatus] = useState('idle')
+  const [cached, setCached] = useState(null)   // { file, url, filename }
+  const [pending, setPending] = useState(null) // 'share' | 'download' | null
+  const [retryKey, setRetryKey] = useState(0)
+  const pendingRef = useRef(null)
+
+  // Prepare the PDF whenever the saved version changes (or on mount for an
+  // existing report). Bytes are fetched into a File held in state so Share
+  // can hand off instantly.
+  useEffect(() => {
+    if (isNew || !reportId) return
+    let cancelled = false
+    setStatus('loading')
+    setCached(null)
+    ;(async () => {
+      try {
+        const res = await fetch('/api/generate-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reportId }),
+        })
+        if (!res.ok) throw new Error(`Server ${res.status}`)
+        const { url, filename } = await res.json()
+        if (cancelled) return
+        const blobRes = await fetch(url)
+        if (!blobRes.ok) throw new Error(`Blob ${blobRes.status}`)
+        const blob = await blobRes.blob()
+        if (cancelled) return
+        const file = new File([blob], filename, { type: 'application/pdf' })
+        const next = { file, url, filename }
+        setCached(next)
+        setStatus('ready')
+        if (pendingRef.current) {
+          const action = pendingRef.current
+          pendingRef.current = null
+          setPending(null)
+          runAction(action, next)
+        }
+      } catch (err) {
+        if (cancelled) return
+        console.error('PDF prepare error:', err)
+        setStatus('error')
+      }
+    })()
+    return () => { cancelled = true }
+  }, [reportId, isNew, savedVersion, retryKey])
+
+  function onAction(action) {
+    if (cached) { runAction(action, cached); return }
+    pendingRef.current = action
+    setPending(action)
+    if (status === 'error') setRetryKey(k => k + 1)
   }
 
   return (
@@ -66,31 +99,31 @@ export default function ReportPDFPreview({ form, client, site, reportId, isNew }
         </p>
       ) : (
         <>
-          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', textAlign: 'center', marginBottom: 10 }}>
-            PDF reflects the last saved version — save before generating to include latest changes.
-          </p>
+          <StatusPill status={status} />
           <div style={{ display: 'flex', gap: 10 }}>
             <button
               type="button"
-              onClick={() => generate('download')}
-              disabled={generating}
+              onClick={() => onAction('download')}
+              disabled={pending === 'download'}
               style={{
                 flex: 1, background: '#2860b8', color: '#fff', border: 'none',
                 borderRadius: 12, padding: '13px 16px', fontSize: 15, fontWeight: 700,
-                cursor: generating ? 'not-allowed' : 'pointer', opacity: generating ? 0.6 : 1,
+                cursor: pending === 'download' ? 'wait' : 'pointer',
+                opacity: pending === 'download' ? 0.75 : 1,
               }}
             >
-              {generating ? 'Generating…' : '↓ Download'}
+              {pending === 'download' ? 'Preparing…' : '↓ Download'}
             </button>
             <button
               type="button"
-              onClick={() => generate('share')}
-              disabled={generating}
+              onClick={() => onAction('share')}
+              disabled={pending === 'share'}
               style={{
                 flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
                 background: '#1a7d35', color: '#fff', border: 'none',
                 borderRadius: 12, padding: '13px 16px', fontSize: 15, fontWeight: 700,
-                cursor: generating ? 'not-allowed' : 'pointer', opacity: generating ? 0.6 : 1,
+                cursor: pending === 'share' ? 'wait' : 'pointer',
+                opacity: pending === 'share' ? 0.75 : 1,
               }}
             >
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -98,14 +131,35 @@ export default function ReportPDFPreview({ form, client, site, reportId, isNew }
                 <polyline points="16 6 12 2 8 6"/>
                 <line x1="12" y1="2" x2="12" y2="15"/>
               </svg>
-              {generating ? 'Generating…' : 'Share'}
+              {pending === 'share' ? 'Preparing…' : 'Share'}
             </button>
           </div>
-          {error && (
-            <p style={{ fontSize: 12, color: '#f87171', textAlign: 'center', marginTop: 8 }}>{error}</p>
+          {status === 'error' && !pending && (
+            <p style={{ fontSize: 12, color: '#f87171', textAlign: 'center', marginTop: 8 }}>
+              Could not prepare PDF. Tap Download or Share to retry.
+            </p>
           )}
         </>
       )}
+    </div>
+  )
+}
+
+function StatusPill({ status }) {
+  const map = {
+    loading: { text: 'Preparing PDF…', color: 'rgba(255,255,255,0.7)', dot: '#e0b84a' },
+    ready:   { text: 'PDF ready',       color: 'rgba(255,255,255,0.85)', dot: '#4ade80' },
+    error:   { text: 'Preparation failed', color: '#fca5a5', dot: '#f87171' },
+  }
+  const info = map[status]
+  if (!info) return <div style={{ height: 22, marginBottom: 10 }} />
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+      fontSize: 11, color: info.color, marginBottom: 10, height: 22,
+    }}>
+      <span style={{ width: 7, height: 7, borderRadius: '50%', background: info.dot }} />
+      {info.text}
     </div>
   )
 }

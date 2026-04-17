@@ -50,6 +50,7 @@ export default function ReportPage() {
   const savedForm = useRef(EMPTY_FORM)
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
+  const [savedVersion, setSavedVersion] = useState(0)
   const [reportDbId] = useState(() => {
     // crypto.randomUUID() may not exist on older Android WebViews
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
@@ -157,12 +158,13 @@ export default function ReportPage() {
       ;({ error } = await supabase.from('reports').insert({ id: effectiveReportId, ...payload }))
       if (!error) {
         savedForm.current = form
+        setSavedVersion(v => v + 1)
         show('Report saved')
         navigate(`/clients/${clientId}/sites/${siteId}/reports/${effectiveReportId}`, { replace: true })
       }
     } else {
       ;({ error } = await supabase.from('reports').update(payload).eq('id', reportId))
-      if (!error) { savedForm.current = form; show('Saved') }
+      if (!error) { savedForm.current = form; setSavedVersion(v => v + 1); show('Saved') }
     }
 
     if (error) show('Error saving — check connection')
@@ -392,7 +394,7 @@ export default function ReportPage() {
         </div>
 
         <div style={{ margin: '0 -16px', background: 'var(--navy)', padding: '0 16px 120px' }}>
-          <ReportPDFPreview form={form} client={client} site={site} reportId={effectiveReportId} isNew={isNew} />
+          <ReportPDFPreview form={form} client={client} site={site} reportId={effectiveReportId} isNew={isNew} savedVersion={savedVersion} />
         </div>
 
       </main>
