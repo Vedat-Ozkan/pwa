@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { LEAK_SOURCES } from '../lib/constants.js'
+import { LEAK_SOURCES, WORK_STATUSES } from '../lib/constants.js'
 
 function runAction(action, { file, url, filename }) {
   if (action === 'share') {
@@ -166,14 +166,13 @@ function StatusPill({ status }) {
 
 /* ─── HTML Preview (live form state, mirrors PDF layout) ─── */
 const PAGE_WIDTH = 720   // 7.5in × 96dpi
-const PAGE_HEIGHT = 960  // 10in × 96dpi
 
 function HTMLPreview({ form, client, site }) {
   const { before = [], progress = [], after = [] } = form.photos ?? {}
   const wrapperRef = useRef(null)
   const contentRef = useRef(null)
   const lastKey = useRef('')
-  const [layout, setLayout] = useState({ scale: 1, height: 'auto', breaks: [] })
+  const [layout, setLayout] = useState({ scale: 1, height: 'auto' })
 
   useEffect(() => {
     function measure() {
@@ -184,9 +183,7 @@ function HTMLPreview({ form, client, site }) {
       const key = `${w}:${h}`
       if (key === lastKey.current) return
       lastKey.current = key
-      const breaks = []
-      for (let y = PAGE_HEIGHT; y < h; y += PAGE_HEIGHT) breaks.push(y * s)
-      setLayout({ scale: s, height: h * s, breaks })
+      setLayout({ scale: s, height: h * s })
     }
     measure()
     const imgs = contentRef.current?.querySelectorAll('img') ?? []
@@ -270,9 +267,16 @@ function HTMLPreview({ form, client, site }) {
       {form.materials    && <PreviewSection title="Materials Used"><BodyText>{form.materials}</BodyText></PreviewSection>}
       {form.notes        && <PreviewSection title="Notes / Recommendations"><BodyText>{form.notes}</BodyText></PreviewSection>}
 
-      {before.length > 0   && <PreviewSection title="Before Photos"><PhotoPreviewGrid photos={before} /></PreviewSection>}
-      {progress.length > 0 && <PreviewSection title="Progress Photos"><PhotoPreviewGrid photos={progress} /></PreviewSection>}
-      {after.length > 0    && <PreviewSection title="After Photos"><PhotoPreviewGrid photos={after} /></PreviewSection>}
+      {(() => {
+        const selected = WORK_STATUSES.find(w => w.key === form.workStatus)
+        if (!selected) return null
+        return (
+          <PreviewSection title="Work">
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#10243e', marginBottom: 3 }}>{selected.title}</div>
+            <div style={{ fontSize: 13, color: '#1d2733', lineHeight: 1.6 }}>{selected.description}</div>
+          </PreviewSection>
+        )
+      })()}
 
       {form.total !== '' && Number.isFinite(parseFloat(form.total)) && (
         <PreviewSection title="Total">
@@ -293,18 +297,11 @@ function HTMLPreview({ form, client, site }) {
           </div>
         </PreviewSection>
       )}
+
+      {before.length > 0   && <PreviewSection title="Before Photos"><PhotoPreviewGrid photos={before} /></PreviewSection>}
+      {progress.length > 0 && <PreviewSection title="Progress Photos"><PhotoPreviewGrid photos={progress} /></PreviewSection>}
+      {after.length > 0    && <PreviewSection title="After Photos"><PhotoPreviewGrid photos={after} /></PreviewSection>}
       </div>
-      {layout.breaks.map((y, i) => (
-        <div key={i} style={{
-          position: 'absolute', left: 0, right: 0, top: y - 10,
-          height: 20,
-          background: '#c8cdd3',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 9, fontWeight: 700, color: '#4a5568', letterSpacing: '0.05em',
-        }}>
-          Page {i + 2}
-        </div>
-      ))}
     </div>
   )
 }

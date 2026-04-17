@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase.js'
 import PhotoSection from '../components/PhotoSection.jsx'
 import { Toast, useToast } from '../components/Toast.jsx'
 import ReportPDFPreview from '../components/ReportPDFPreview.jsx'
-import { ROOF_TYPES, SERVICE_TYPES, LEAK_SOURCES } from '../lib/constants.js'
+import { ROOF_TYPES, SERVICE_TYPES, LEAK_SOURCES, WORK_STATUSES } from '../lib/constants.js'
 
 function localToday() {
   const d = new Date()
@@ -27,6 +27,7 @@ const EMPTY_FORM = {
   workPerformed: '',
   materials: '',
   notes: '',
+  workStatus: '',
   signedBy: '',
   total: '',
   photos: { before: [], progress: [], after: [] },
@@ -84,6 +85,7 @@ export default function ReportPage() {
               workPerformed: data.data?.workPerformed ?? '',
               materials: data.data?.materials ?? '',
               notes: data.data?.notes ?? '',
+              workStatus: data.data?.workStatus ?? '',
               signedBy: data.data?.signedBy ?? '',
               total: data.data?.total ?? '',
               photos: data.data?.photos ?? { before: [], progress: [], after: [] },
@@ -147,6 +149,7 @@ export default function ReportPage() {
         workPerformed: form.workPerformed,
         materials: form.materials,
         notes: form.notes,
+        workStatus: form.workStatus,
         signedBy: form.signedBy,
         total: form.total,
         photos: form.photos,
@@ -281,41 +284,37 @@ export default function ReportPage() {
 
         <div className="divider" />
 
-        {/* ── Photo Documentation ── */}
-        <Section title="Photo Documentation">
-          <div className="form-grid">
-            <div>
-              <h2 className="section-title">Before</h2>
-              <PhotoSection
-                label="before"
-                photos={form.photos.before}
-                onChange={setPhotos('before')}
-                clientId={clientId}
-                reportId={effectiveReportId}
-              />
-            </div>
-            <div className="divider" style={{ margin: '4px 0' }} />
-            <div>
-              <h2 className="section-title">Progress</h2>
-              <PhotoSection
-                label="progress"
-                photos={form.photos.progress}
-                onChange={setPhotos('progress')}
-                clientId={clientId}
-                reportId={effectiveReportId}
-              />
-            </div>
-            <div className="divider" style={{ margin: '4px 0' }} />
-            <div>
-              <h2 className="section-title">After</h2>
-              <PhotoSection
-                label="after"
-                photos={form.photos.after}
-                onChange={setPhotos('after')}
-                clientId={clientId}
-                reportId={effectiveReportId}
-              />
-            </div>
+        {/* ── Work Status ── */}
+        <Section title="Work">
+          <div className="check-grid" style={{ gridTemplateColumns: '1fr' }}>
+            {WORK_STATUSES.map(w => (
+              <label
+                key={w.key}
+                className={`check-item${form.workStatus === w.key ? ' checked' : ''}`}
+                style={{ alignItems: 'flex-start' }}
+              >
+                <input
+                  type="radio"
+                  name="workStatus"
+                  checked={form.workStatus === w.key}
+                  onChange={() => setForm(f => ({ ...f, workStatus: w.key }))}
+                />
+                <span>
+                  <div style={{ fontWeight: 600 }}>{w.title}</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{w.description}</div>
+                </span>
+              </label>
+            ))}
+            {form.workStatus && (
+              <button
+                type="button"
+                className="btn-ghost"
+                style={{ alignSelf: 'flex-start', fontSize: 12 }}
+                onClick={() => setForm(f => ({ ...f, workStatus: '' }))}
+              >
+                Clear selection
+              </button>
+            )}
           </div>
         </Section>
 
@@ -367,6 +366,46 @@ export default function ReportPage() {
               </div>
             </div>
           )}
+        </Section>
+
+        <div className="divider" />
+
+        {/* ── Photo Documentation ── */}
+        <Section title="Photo Documentation">
+          <div className="form-grid">
+            <div>
+              <h2 className="section-title">Before</h2>
+              <PhotoSection
+                label="before"
+                photos={form.photos.before}
+                onChange={setPhotos('before')}
+                clientId={clientId}
+                reportId={effectiveReportId}
+              />
+            </div>
+            <div className="divider" style={{ margin: '4px 0' }} />
+            <div>
+              <h2 className="section-title">Progress</h2>
+              <PhotoSection
+                label="progress"
+                photos={form.photos.progress}
+                onChange={setPhotos('progress')}
+                clientId={clientId}
+                reportId={effectiveReportId}
+              />
+            </div>
+            <div className="divider" style={{ margin: '4px 0' }} />
+            <div>
+              <h2 className="section-title">After</h2>
+              <PhotoSection
+                label="after"
+                photos={form.photos.after}
+                onChange={setPhotos('after')}
+                clientId={clientId}
+                reportId={effectiveReportId}
+              />
+            </div>
+          </div>
         </Section>
 
         {/* ── PDF Preview ── */}

@@ -53,8 +53,8 @@ describe('localToday()', () => {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 describe('LEAK_SOURCES', () => {
-  it('has 19 items', () => {
-    expect(LEAK_SOURCES).toHaveLength(19)
+  it('has 24 items', () => {
+    expect(LEAK_SOURCES).toHaveLength(24)
   })
 
   it('contains expected common sources', () => {
