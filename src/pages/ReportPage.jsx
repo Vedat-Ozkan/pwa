@@ -172,6 +172,7 @@ export default function ReportPage() {
 
     if (error) show('Error saving — check connection')
     setSaving(false)
+    return !error
   }
 
   if (loading) {
@@ -433,7 +434,16 @@ export default function ReportPage() {
         </div>
 
         <div style={{ margin: '0 -16px', background: 'var(--navy)', padding: '0 16px 120px' }}>
-          <ReportPDFPreview form={form} client={client} site={site} reportId={effectiveReportId} isNew={isNew} savedVersion={savedVersion} />
+          <ReportPDFPreview
+            form={form}
+            client={client}
+            site={site}
+            reportId={effectiveReportId}
+            isNew={isNew}
+            savedVersion={savedVersion}
+            isDirty={isDirty}
+            onSave={save}
+          />
         </div>
 
       </main>

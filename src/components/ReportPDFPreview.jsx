@@ -26,7 +26,7 @@ function runAction(action, { file, url, filename }) {
   URL.revokeObjectURL(objUrl)
 }
 
-export default function ReportPDFPreview({ form, client, site, reportId, isNew, savedVersion = 0 }) {
+export default function ReportPDFPreview({ form, client, site, reportId, isNew, savedVersion = 0, isDirty = false, onSave }) {
   // status: 'idle' | 'loading' | 'ready' | 'error'
   const [status, setStatus] = useState('idle')
   const [cached, setCached] = useState(null)   // { file, url, filename }
@@ -75,7 +75,19 @@ export default function ReportPDFPreview({ form, client, site, reportId, isNew, 
     return () => { cancelled = true }
   }, [reportId, isNew, savedVersion, retryKey])
 
-  function onAction(action) {
+  async function onAction(action) {
+    // Dirty form → save first. The save bumps savedVersion, which restarts
+    // the prefetch effect; the queued action fires when the fresh PDF lands.
+    if (isDirty && onSave) {
+      pendingRef.current = action
+      setPending(action)
+      const ok = await onSave()
+      if (!ok) {
+        pendingRef.current = null
+        setPending(null)
+      }
+      return
+    }
     if (cached) { runAction(action, cached); return }
     pendingRef.current = action
     setPending(action)
@@ -99,17 +111,22 @@ export default function ReportPDFPreview({ form, client, site, reportId, isNew, 
         </p>
       ) : (
         <>
-          <StatusPill status={status} />
+          <StatusPill status={isDirty ? 'dirty' : status} />
+          {(() => {
+            // Busy = PDF is being prepared (cached miss + prefetching) OR a click is in flight.
+            // When dirty we still allow clicks, since the click itself triggers save+regenerate.
+            const busy = pending !== null || (status === 'loading' && !isDirty)
+            return (
           <div style={{ display: 'flex', gap: 10 }}>
             <button
               type="button"
               onClick={() => onAction('download')}
-              disabled={pending === 'download'}
+              disabled={busy}
               style={{
                 flex: 1, background: '#2860b8', color: '#fff', border: 'none',
                 borderRadius: 12, padding: '13px 16px', fontSize: 15, fontWeight: 700,
-                cursor: pending === 'download' ? 'wait' : 'pointer',
-                opacity: pending === 'download' ? 0.75 : 1,
+                cursor: busy ? 'not-allowed' : 'pointer',
+                opacity: busy ? 0.55 : 1,
               }}
             >
               {pending === 'download' ? 'Preparing…' : '↓ Download'}
@@ -117,13 +134,13 @@ export default function ReportPDFPreview({ form, client, site, reportId, isNew, 
             <button
               type="button"
               onClick={() => onAction('share')}
-              disabled={pending === 'share'}
+              disabled={busy}
               style={{
                 flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
                 background: '#1a7d35', color: '#fff', border: 'none',
                 borderRadius: 12, padding: '13px 16px', fontSize: 15, fontWeight: 700,
-                cursor: pending === 'share' ? 'wait' : 'pointer',
-                opacity: pending === 'share' ? 0.75 : 1,
+                cursor: busy ? 'not-allowed' : 'pointer',
+                opacity: busy ? 0.55 : 1,
               }}
             >
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -134,6 +151,8 @@ export default function ReportPDFPreview({ form, client, site, reportId, isNew, 
               {pending === 'share' ? 'Preparing…' : 'Share'}
             </button>
           </div>
+            )
+          })()}
           {status === 'error' && !pending && (
             <p style={{ fontSize: 12, color: '#f87171', textAlign: 'center', marginTop: 8 }}>
               Could not prepare PDF. Tap Download or Share to retry.
@@ -150,6 +169,7 @@ function StatusPill({ status }) {
     loading: { text: 'Preparing PDF…', color: 'rgba(255,255,255,0.7)', dot: '#e0b84a' },
     ready:   { text: 'PDF ready',       color: 'rgba(255,255,255,0.85)', dot: '#4ade80' },
     error:   { text: 'Preparation failed', color: '#fca5a5', dot: '#f87171' },
+    dirty:   { text: 'Unsaved changes — will save on Download/Share', color: 'rgba(255,255,255,0.7)', dot: '#e0b84a' },
   }
   const info = map[status]
   if (!info) return <div style={{ height: 22, marginBottom: 10 }} />

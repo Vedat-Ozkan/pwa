@@ -304,7 +304,7 @@ function photosSection(photos) {
   const { before = [], progress = [], after = [] } = photos ?? {}
   if (!before.length && !progress.length && !after.length) return ''
   return `
-    <div class="section">
+    <div class="section" style="break-before: page;">
       <div class="section-title">Photo Documentation</div>
       ${photoGroup('Before Photos', before)}
       ${photoGroup('Progress Photos', progress)}
