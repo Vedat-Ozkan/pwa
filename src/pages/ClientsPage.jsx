@@ -6,24 +6,38 @@ async function signOut() {
   await supabase.auth.signOut()
 }
 import ClientModal from '../components/ClientModal.jsx'
+import CompanyModal from '../components/CompanyModal.jsx'
 import { Toast, useToast } from '../components/Toast.jsx'
 
 export default function ClientsPage() {
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null) // null | 'new' | { client object }
+  const [companyModal, setCompanyModal] = useState(false)
+  const [company, setCompany] = useState(null)
   const { toast, show } = useToast()
   const navigate = useNavigate()
 
   useEffect(() => {
     fetchClients()
+    fetchCompany()
   }, [])
+
+  async function fetchCompany() {
+    const { data } = await supabase.from('company_settings').select('*').eq('id', 1).single()
+    if (data) setCompany(data)
+  }
+
+  async function handleCompanySave(form) {
+    const { error } = await supabase.from('company_settings').update(form).eq('id', 1)
+    if (!error) { show('Company updated'); setCompanyModal(false); fetchCompany() }
+  }
 
   async function fetchClients() {
     const { data, error } = await supabase
       .from('clients')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('client_name', { ascending: true })
     if (!error) setClients(data)
     setLoading(false)
   }
@@ -80,21 +94,38 @@ export default function ClientsPage() {
               <div className="hero-sub">Field Reports</div>
             </div>
           </div>
-          <button
-            onClick={signOut}
-            title="Sign out"
-            style={{
-              background: 'rgba(255,255,255,0.1)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              borderRadius: 10,
-              color: 'rgba(255,255,255,0.7)',
-              padding: '9px 13px',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
-            Sign out
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => setCompanyModal(true)}
+              title="Edit company info"
+              style={{
+                background: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: 10,
+                color: 'rgba(255,255,255,0.85)',
+                padding: '9px 13px',
+                fontSize: 13,
+                cursor: 'pointer',
+              }}
+            >
+              Edit Company
+            </button>
+            <button
+              onClick={signOut}
+              title="Sign out"
+              style={{
+                background: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: 10,
+                color: 'rgba(255,255,255,0.7)',
+                padding: '9px 13px',
+                fontSize: 13,
+                cursor: 'pointer',
+              }}
+            >
+              Sign out
+            </button>
+          </div>
         </div>
       </header>
 
@@ -157,6 +188,14 @@ export default function ClientsPage() {
           onSave={handleSave}
           onDelete={modal !== 'new' ? handleDelete : undefined}
           onClose={() => setModal(null)}
+        />
+      )}
+
+      {companyModal && (
+        <CompanyModal
+          initial={company}
+          onSave={handleCompanySave}
+          onClose={() => setCompanyModal(false)}
         />
       )}
     </>

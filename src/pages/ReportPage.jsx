@@ -47,6 +47,7 @@ export default function ReportPage() {
 
   const [client, setClient] = useState(null)
   const [site, setSite] = useState(null)
+  const [company, setCompany] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const savedForm = useRef(EMPTY_FORM)
   const [loading, setLoading] = useState(!isNew)
@@ -68,6 +69,8 @@ export default function ReportPage() {
       .then(({ data }) => { if (data) setClient(data) })
     supabase.from('job_sites').select('*').eq('id', siteId).single()
       .then(({ data }) => { if (data) setSite(data) })
+    supabase.from('company_settings').select('*').eq('id', 1).single()
+      .then(({ data }) => { if (data) setCompany(data) })
 
     if (!isNew) {
       supabase.from('reports').select('*').eq('id', reportId).single()
@@ -193,7 +196,7 @@ export default function ReportPage() {
       <header className="topbar">
         <button className="btn-back" onClick={goBack}>‹</button>
         <span className="topbar-title">
-          {client?.client_name ?? ''}{site?.job_address ? ` — ${site.job_address}` : ''}
+          {client?.client_name ?? ''}{site?.corporation_name ? ` — ${site.corporation_name}` : ''}{site?.job_address ? ` — ${site.job_address}` : ''}
         </span>
         <button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
       </header>
@@ -438,6 +441,7 @@ export default function ReportPage() {
             form={form}
             client={client}
             site={site}
+            company={company}
             reportId={effectiveReportId}
             isNew={isNew}
             savedVersion={savedVersion}

@@ -17,7 +17,7 @@ export default function SitePage() {
   async function fetchAll() {
     const [{ data: s }, { data: r }] = await Promise.all([
       supabase.from('job_sites').select('*').eq('id', siteId).single(),
-      supabase.from('reports').select('*').eq('job_site_id', siteId).order('created_at', { ascending: false }),
+      supabase.from('reports').select('*').eq('job_site_id', siteId).order('report_date', { ascending: true }),
     ])
     if (s) setSite(s)
     if (r) setReports(r)
@@ -55,7 +55,7 @@ export default function SitePage() {
         <div className="topbar">
           <button className="btn-back" onClick={() => navigate(`/clients/${clientId}`)}>&#8249;</button>
         </div>
-        <p style={{ textAlign: 'center', padding: 40, color: 'var(--muted)' }}>Site not found.</p>
+        <p style={{ textAlign: 'center', padding: 40, color: 'var(--muted)' }}>Property not found.</p>
       </>
     )
   }
@@ -66,7 +66,9 @@ export default function SitePage() {
 
       <header className="topbar">
         <button className="btn-back" onClick={() => navigate(`/clients/${clientId}`)}>&#8249;</button>
-        <span className="topbar-title">{site.job_address || '(no address)'}</span>
+        <span className="topbar-title">
+          {site.corporation_name ? `${site.corporation_name} — ` : ''}{site.job_address || '(no address)'}
+        </span>
       </header>
 
       <main className="page" style={{ paddingTop: 20 }}>

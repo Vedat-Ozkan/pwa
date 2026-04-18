@@ -26,7 +26,7 @@ function runAction(action, { file, url, filename }) {
   URL.revokeObjectURL(objUrl)
 }
 
-export default function ReportPDFPreview({ form, client, site, reportId, isNew, savedVersion = 0, isDirty = false, onSave }) {
+export default function ReportPDFPreview({ form, client, site, company, reportId, isNew, savedVersion = 0, isDirty = false, onSave }) {
   // status: 'idle' | 'loading' | 'ready' | 'error'
   const [status, setStatus] = useState('idle')
   const [cached, setCached] = useState(null)   // { file, url, filename }
@@ -102,7 +102,7 @@ export default function ReportPDFPreview({ form, client, site, reportId, isNew, 
         background: '#fff', overflow: 'hidden', marginBottom: 16,
         boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
       }}>
-        <HTMLPreview form={form} client={client} site={site} />
+        <HTMLPreview form={form} client={client} site={site} company={company} />
       </div>
 
       {isNew ? (
@@ -187,7 +187,8 @@ function StatusPill({ status }) {
 /* ─── HTML Preview (live form state, mirrors PDF layout) ─── */
 const PAGE_WIDTH = 720   // 7.5in × 96dpi
 
-function HTMLPreview({ form, client, site }) {
+function HTMLPreview({ form, client, site, company }) {
+  const companyName = company?.company_name || 'HSX INCORPORATED'
   const { before = [], progress = [], after = [] } = form.photos ?? {}
   const wrapperRef = useRef(null)
   const contentRef = useRef(null)
@@ -229,8 +230,8 @@ function HTMLPreview({ form, client, site }) {
           <img src="/logo_hsx.png"
             alt="HSX" style={{ height: 46, background: '#fff', borderRadius: 6, padding: 3 }} />
           <div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: '#10243e' }}>HSX Roofing Field Report</div>
-            <div style={{ fontSize: 11, color: '#667487', marginTop: 2 }}>Prepared by HSX Roofing Inc.</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: '#10243e' }}>{companyName} Field Report</div>
+            <div style={{ fontSize: 11, color: '#667487', marginTop: 2 }}>Prepared by {companyName}</div>
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
@@ -238,6 +239,18 @@ function HTMLPreview({ form, client, site }) {
           <div style={{ fontSize: 13, fontWeight: 700, color: '#10243e' }}>{form.report_date || '—'}</div>
         </div>
       </div>
+
+      {company && (
+        <PreviewSection title="Company Information">
+          <TwoColGrid fields={[
+            ['Company',          company.company_name],
+            ['Primary Contact',  company.contact_name],
+            ['Phone',            company.phone],
+            ['Email',            company.email],
+            ['Roles Provided',   company.roles],
+          ]} />
+        </PreviewSection>
+      )}
 
       <PreviewSection title="Client Information">
         <TwoColGrid fields={[
@@ -250,9 +263,16 @@ function HTMLPreview({ form, client, site }) {
         ]} />
       </PreviewSection>
 
-      <PreviewSection title="Project Information">
+      <PreviewSection title="Property Information">
         <TwoColGrid fields={[
-          ['Job Site Address',            site?.job_address],
+          ['Corporation Name',            site?.corporation_name],
+          ['Property Address',            site?.job_address],
+        ]} />
+      </PreviewSection>
+
+      <PreviewSection title="Work Report Information">
+        <TwoColGrid fields={[
+          ['Report Date',                 form.report_date],
           ['Supervisor',                  form.supervisor],
           ['PO Number',                   form.po_number],
           ['WO Number',                   form.wo_number],

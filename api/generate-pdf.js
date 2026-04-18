@@ -120,11 +120,14 @@ export default async function handler(req, res) {
   const protocol = req.headers['x-forwarded-proto'] || 'https'
   const logoSrc = `${protocol}://${req.headers.host}/logo_hsx.png`
 
+  const { data: company } = await supabase
+    .from('company_settings').select('*').eq('id', 1).single()
+
   // Inline all photos as base64 before handing HTML to Puppeteer — avoids
   // sequential network fetches inside the headless browser.
   const dataWithInlinedPhotos = await inlineAllPhotos(report.data)
   const reportForHtml = { ...report, data: dataWithInlinedPhotos }
-  const html = generateReportHTML(reportForHtml, client, site, logoSrc)
+  const html = generateReportHTML(reportForHtml, client, site, logoSrc, company)
 
   let browser
   try {

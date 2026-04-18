@@ -188,22 +188,39 @@ const CSS = `
 
 // ── Section builders ─────────────────────────────────────────────────────────
 
-function header(report, client, logoSrc) {
+function header(report, company, logoSrc) {
+  const name = company?.company_name || 'HSX INCORPORATED'
   return `
     <div class="header">
       <div class="header-left">
         <img class="header-logo"
           src="${logoSrc}"
-          alt="HSX Roofing" />
+          alt="${esc(name)}" />
         <div>
-          <div class="header-title">HSX Roofing Field Report</div>
-          <div class="header-sub">Prepared by HSX Roofing Inc.</div>
+          <div class="header-title">${esc(name)} Field Report</div>
+          <div class="header-sub">Prepared by ${esc(name)}</div>
         </div>
       </div>
       <div class="header-right">
         <div class="header-date-label">Report Date</div>
         <div class="header-date-val">${esc(formatDate(report.report_date))}</div>
       </div>
+    </div>
+  `
+}
+
+function companySection(company) {
+  if (!company) return ''
+  return `
+    <div class="section">
+      <div class="section-title">Company Information</div>
+      ${fieldGrid([
+        ['Company',          company.company_name],
+        ['Primary Contact',  company.contact_name],
+        ['Phone',            company.phone],
+        ['Email',            company.email],
+        ['Roles Provided',   company.roles],
+      ])}
     </div>
   `
 }
@@ -237,12 +254,23 @@ function clientSection(client) {
   `
 }
 
-function projectSection(report, site) {
+function propertySection(site) {
   return `
     <div class="section">
-      <div class="section-title">Project Information</div>
+      <div class="section-title">Property Information</div>
       ${fieldGrid([
-        ['Job Site Address',            site?.job_address],
+        ['Corporation Name',            site?.corporation_name],
+        ['Property Address',            site?.job_address],
+      ])}
+    </div>
+  `
+}
+
+function workReportSection(report) {
+  return `
+    <div class="section">
+      <div class="section-title">Work Report Information</div>
+      ${fieldGrid([
         ['Report Date',                 formatDate(report.report_date)],
         ['Supervisor',                  report.supervisor],
         ['PO Number',                   report.po_number],
@@ -351,7 +379,7 @@ function signatureSection(signedBy) {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export function generateReportHTML(report, client, site, logoSrc) {
+export function generateReportHTML(report, client, site, logoSrc, company) {
   const d = report.data ?? {}
 
   return `<!DOCTYPE html>
@@ -366,9 +394,11 @@ export function generateReportHTML(report, client, site, logoSrc) {
   <style>${CSS}</style>
 </head>
 <body>
-  ${header(report, client, logoSrc)}
+  ${header(report, company, logoSrc)}
+  ${companySection(company)}
   ${clientSection(client)}
-  ${projectSection(report, site)}
+  ${propertySection(site)}
+  ${workReportSection(report)}
   ${leakSection(d.leakSources)}
   ${textSection('Site Conditions / Findings', d.findings)}
   ${textSection('Work Performed', d.workPerformed)}

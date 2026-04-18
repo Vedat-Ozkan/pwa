@@ -20,7 +20,9 @@ export default function ClientPage() {
   async function fetchAll() {
     const [{ data: c }, { data: s }] = await Promise.all([
       supabase.from('clients').select('*').eq('id', clientId).single(),
-      supabase.from('job_sites').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
+      supabase.from('job_sites').select('*').eq('client_id', clientId)
+        .order('corporation_name', { ascending: true, nullsFirst: false })
+        .order('job_address', { ascending: true }),
     ])
     if (c) setClient(c)
     if (s) setSites(s)
@@ -33,7 +35,7 @@ export default function ClientPage() {
   }
 
   async function handleClientDelete() {
-    if (!window.confirm('Delete this client and all their sites/reports?')) return
+    if (!window.confirm('Delete this client and all their properties/reports?')) return
     await supabase.from('clients').delete().eq('id', clientId)
     navigate('/')
   }
@@ -41,10 +43,10 @@ export default function ClientPage() {
   async function handleSiteSave(form) {
     if (siteModal === 'new') {
       const { error } = await supabase.from('job_sites').insert({ client_id: clientId, ...form })
-      if (!error) { show('Site created'); setSiteModal(null); fetchAll() }
+      if (!error) { show('Property created'); setSiteModal(null); fetchAll() }
     } else {
       const { error } = await supabase.from('job_sites').update(form).eq('id', siteModal.id)
-      if (!error) { show('Site updated'); setSiteModal(null); fetchAll() }
+      if (!error) { show('Property updated'); setSiteModal(null); fetchAll() }
     }
   }
 
@@ -54,7 +56,7 @@ export default function ClientPage() {
     setSites(s => s.filter(x => x.id !== siteId))
 
     let undone = false
-    show(`Site deleted`, {
+    show(`Property deleted`, {
       actionLabel: 'Undo',
       duration: 5000,
       onAction: () => { undone = true; setSites(s => [site, ...s]) },
@@ -110,13 +112,13 @@ export default function ClientPage() {
 
         {/* Sites section */}
         <div style={{ marginBottom: 14 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--navy)' }}>Job Sites</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--navy)' }}>Properties</h2>
         </div>
 
         {sites.length === 0 && (
           <div className="empty-state">
             <div style={{ fontSize: 40 }}>📍</div>
-            <p>No job sites yet. Tap <strong>+ New Site</strong> to add one.</p>
+            <p>No properties yet. Tap <strong>+ New Property</strong> to add one.</p>
           </div>
         )}
 
@@ -127,6 +129,9 @@ export default function ClientPage() {
                 <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--navy)' }}>
                   {s.job_address || '(no address)'}
                 </div>
+                {s.corporation_name && (
+                  <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>{s.corporation_name}</div>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                 <button className="btn-ghost btn-sm" onClick={() => setSiteModal(s)}>Edit</button>
@@ -152,7 +157,7 @@ export default function ClientPage() {
           boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
         }}
       >
-        + New Site
+        + New Property
       </button>
 
       {editModal && (
