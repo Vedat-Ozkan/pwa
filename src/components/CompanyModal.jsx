@@ -6,7 +6,6 @@ const EMPTY = {
   contact_name: 'Roberto Hamasato',
   phone: '(416) 880-8134',
   email: 'Roberto@hsxroofing.com',
-  roles: 'Roofing Contractor & Roof Consultant',
 }
 
 export default function CompanyModal({ initial, onSave, onClose }) {
@@ -53,10 +52,6 @@ export default function CompanyModal({ initial, onSave, onClose }) {
           <div className="field">
             <label>Email</label>
             <input value={form.email} onChange={set('email')} type="email" />
-          </div>
-          <div className="field">
-            <label>Roles Provided</label>
-            <input value={form.roles} onChange={set('roles')} />
           </div>
         </div>
         <div className="modal-actions">

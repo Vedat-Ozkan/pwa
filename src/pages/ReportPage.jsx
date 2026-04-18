@@ -17,7 +17,6 @@ function localToday() {
 
 const EMPTY_FORM = {
   report_date: localToday(),
-  supervisor: '',
   po_number: '',
   wo_number: '',
   roofType: '',
@@ -31,12 +30,6 @@ const EMPTY_FORM = {
   signedBy: '',
   total: '',
   photos: { before: [], progress: [], after: [] },
-}
-
-function formatMoney(val) {
-  const num = parseFloat(val)
-  if (!Number.isFinite(num)) return ''
-  return num.toLocaleString('en-US', { style: 'currency', currency: 'CAD' })
 }
 
 export default function ReportPage() {
@@ -78,7 +71,6 @@ export default function ReportPage() {
           if (data) {
             const loaded = {
               report_date: data.report_date ?? '',
-              supervisor: data.supervisor ?? '',
               po_number: data.po_number ?? '',
               wo_number: data.wo_number ?? '',
               roofType: data.data?.roofType ?? '',
@@ -141,7 +133,6 @@ export default function ReportPage() {
     const payload = {
       job_site_id: siteId,
       report_date: form.report_date || null,
-      supervisor: form.supervisor,
       po_number: form.po_number,
       wo_number: form.wo_number,
       data: {
@@ -208,9 +199,6 @@ export default function ReportPage() {
           <div className="form-grid form-grid-2">
             <Field label="Report Date">
               <input type="date" value={form.report_date} onChange={setField('report_date')} />
-            </Field>
-            <Field label="Supervisor">
-              <input value={form.supervisor} onChange={setField('supervisor')} placeholder="Supervisor name" />
             </Field>
             <Field label="PO Number">
               <input value={form.po_number} onChange={setField('po_number')} placeholder="PO #" />
@@ -337,18 +325,6 @@ export default function ReportPage() {
               placeholder="0.00"
             />
           </Field>
-          {form.total !== '' && Number.isFinite(parseFloat(form.total)) && (
-            <div style={{
-              marginTop: 12, padding: '14px 18px',
-              border: '1px solid var(--line)', borderRadius: 10, background: '#fafbfd',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}>
-              <span style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: '0.04em' }}>TOTAL</span>
-              <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--navy)' }}>
-                {formatMoney(form.total)}
-              </span>
-            </div>
-          )}
         </Section>
 
         <div className="divider" />

@@ -8,12 +8,14 @@ create table if not exists company_settings (
   contact_name    text not null default 'Roberto Hamasato',
   phone           text not null default '(416) 880-8134',
   email           text not null default 'Roberto@hsxroofing.com',
-  roles           text not null default 'Roofing Contractor & Roof Consultant',
   updated_at      timestamptz not null default now(),
   constraint company_settings_singleton check (id = 1)
 );
 
 insert into company_settings (id) values (1) on conflict (id) do nothing;
+
+-- If roles column was previously created, drop it
+alter table company_settings drop column if exists roles;
 
 alter table company_settings enable row level security;
 

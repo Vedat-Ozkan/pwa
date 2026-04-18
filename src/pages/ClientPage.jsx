@@ -13,6 +13,7 @@ export default function ClientPage() {
   const [loading, setLoading] = useState(true)
   const [editModal, setEditModal] = useState(false)
   const [siteModal, setSiteModal] = useState(null) // null | 'new' | site object
+  const [search, setSearch] = useState('')
   const { toast, show } = useToast()
 
   useEffect(() => { fetchAll() }, [clientId])
@@ -110,6 +111,19 @@ export default function ClientPage() {
           </div>
         </div>
 
+        {/* Search */}
+        <div style={{ marginBottom: 14 }}>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search properties…"
+            style={{
+              width: '100%', padding: '11px 14px', fontSize: 15,
+              border: '1px solid var(--line)', borderRadius: 10, background: '#fff',
+            }}
+          />
+        </div>
+
         {/* Sites section */}
         <div style={{ marginBottom: 14 }}>
           <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--navy)' }}>Properties</h2>
@@ -123,7 +137,12 @@ export default function ClientPage() {
         )}
 
         <div style={{ display: 'grid', gap: 10 }}>
-          {sites.map(s => (
+          {sites.filter(s => {
+            const q = search.trim().toLowerCase()
+            if (!q) return true
+            return (s.job_address || '').toLowerCase().includes(q)
+              || (s.corporation_name || '').toLowerCase().includes(q)
+          }).map(s => (
             <div key={s.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--navy)' }}>

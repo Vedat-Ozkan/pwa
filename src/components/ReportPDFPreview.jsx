@@ -247,7 +247,6 @@ function HTMLPreview({ form, client, site, company }) {
             ['Primary Contact',  company.contact_name],
             ['Phone',            company.phone],
             ['Email',            company.email],
-            ['Roles Provided',   company.roles],
           ]} />
         </PreviewSection>
       )}
@@ -273,7 +272,6 @@ function HTMLPreview({ form, client, site, company }) {
       <PreviewSection title="Work Report Information">
         <TwoColGrid fields={[
           ['Report Date',                 form.report_date],
-          ['Supervisor',                  form.supervisor],
           ['PO Number',                   form.po_number],
           ['WO Number',                   form.wo_number],
           ['Roof System Type',            form.roofType],
@@ -322,13 +320,13 @@ function HTMLPreview({ form, client, site, company }) {
         <PreviewSection title="Total">
           <div style={{ fontSize: 13 }}>
             <span style={{ fontWeight: 700, color: '#10243e' }}>Total: </span>
-            {parseFloat(form.total).toLocaleString('en-US', { style: 'currency', currency: 'CAD' })}
+            <strong>{parseFloat(form.total).toLocaleString('en-US', { style: 'currency', currency: 'CAD' })}</strong>
           </div>
         </PreviewSection>
       )}
 
       {form.signedBy && (
-        <PreviewSection title="Signature">
+        <PreviewSection title="Signature" style={{ marginTop: 40 }}>
           <div style={{ fontStyle: 'italic', fontSize: 22, fontFamily: 'Georgia, serif', color: '#10243e' }}>
             {form.signedBy}
           </div>
@@ -346,9 +344,9 @@ function HTMLPreview({ form, client, site, company }) {
   )
 }
 
-function PreviewSection({ title, children }) {
+function PreviewSection({ title, children, style }) {
   return (
-    <div style={{ marginBottom: 18 }}>
+    <div style={{ marginBottom: 18, ...style }}>
       <div style={{
         fontSize: 11, fontWeight: 800, color: '#10243e',
         borderBottom: '1px solid #d9e0e7', paddingBottom: 5, marginBottom: 10,

@@ -90,11 +90,6 @@ export default function SitePage() {
                 <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--navy)' }}>
                   {r.report_date || 'No date'}
                 </div>
-                {r.supervisor && (
-                  <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>
-                    Supervisor: {r.supervisor}
-                  </div>
-                )}
               </div>
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                 <button className="btn-danger btn-sm" onClick={() => setConfirmDeleteId(r)}>Delete</button>

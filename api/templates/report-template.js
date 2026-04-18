@@ -45,7 +45,7 @@ const CSS = `
 
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 10px;
+    font-size: 12px;
     color: #1d2733;
     line-height: 1.45;
     -webkit-print-color-adjust: exact;
@@ -63,16 +63,16 @@ const CSS = `
   }
   .header-left { display: flex; align-items: center; gap: 10px; }
   .header-logo { height: 38px; object-fit: contain; }
-  .header-title { font-size: 14px; font-weight: 800; color: ${NAVY}; }
-  .header-sub { font-size: 8px; color: ${MUTED}; margin-top: 2px; }
+  .header-title { font-size: 17px; font-weight: 800; color: ${NAVY}; }
+  .header-sub { font-size: 10px; color: ${MUTED}; margin-top: 2px; }
   .header-right { text-align: right; }
-  .header-date-label { font-size: 8px; color: ${MUTED}; }
-  .header-date-val { font-size: 11px; font-weight: 700; color: ${NAVY}; margin-top: 2px; }
+  .header-date-label { font-size: 10px; color: ${MUTED}; }
+  .header-date-val { font-size: 13px; font-weight: 700; color: ${NAVY}; margin-top: 2px; }
 
   /* ── Sections ── */
   .section { margin-bottom: 14px; }
   .section-title {
-    font-size: 8.5px;
+    font-size: 10.5px;
     font-weight: 800;
     color: ${NAVY};
     text-transform: uppercase;
@@ -91,14 +91,14 @@ const CSS = `
   }
   .field { break-inside: avoid; }
   .field-label {
-    font-size: 7px;
+    font-size: 9px;
     font-weight: 700;
     color: ${MUTED};
     text-transform: uppercase;
     letter-spacing: 0.06em;
     margin-bottom: 1px;
   }
-  .field-value { font-size: 10px; }
+  .field-value { font-size: 12px; }
 
   /* ── Leak source ── */
   .leak-grid {
@@ -121,17 +121,17 @@ const CSS = `
     background: #fff;
   }
   .leak-box.checked { background: ${NAVY}; border-color: ${NAVY}; }
-  .leak-label { font-size: 8.5px; }
+  .leak-label { font-size: 10.5px; }
   .leak-label.checked { font-weight: 700; color: ${NAVY}; }
   .leak-label.unchecked { color: #9eaab6; }
 
   /* ── Body text ── */
-  .body-text { font-size: 10px; line-height: 1.6; white-space: pre-wrap; }
+  .body-text { font-size: 12px; line-height: 1.6; white-space: pre-wrap; }
 
   /* ── Photo sections — 2 columns × 2 rows per page ── */
   .photo-group { margin-bottom: 10px; }
   .photo-group-title {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
     color: ${NAVY};
     margin-bottom: 8px;
@@ -160,7 +160,7 @@ const CSS = `
     display: block;
   }
   .photo-caption {
-    font-size: 10px;
+    font-size: 11px;
     color: ${MUTED};
     text-align: center;
     margin-top: 5px;
@@ -170,11 +170,11 @@ const CSS = `
 
   /* ── Total ── */
   .total-section { break-inside: avoid; }
-  .total-line { font-size: 10px; }
+  .total-line { font-size: 12px; }
   .total-label { font-weight: 700; color: ${NAVY}; }
 
   /* ── Signature ── */
-  .sig-section { break-inside: avoid; }
+  .sig-section { break-inside: avoid; margin-top: 40px; }
   .sig-name {
     font-size: 22px;
     font-style: italic;
@@ -183,7 +183,7 @@ const CSS = `
     margin: 5px 0 3px;
   }
   .sig-line { border-bottom: 1px solid ${NAVY}; margin-bottom: 4px; }
-  .sig-label { font-size: 7.5px; color: ${MUTED}; }
+  .sig-label { font-size: 9.5px; color: ${MUTED}; }
 `
 
 // ── Section builders ─────────────────────────────────────────────────────────
@@ -219,7 +219,6 @@ function companySection(company) {
         ['Primary Contact',  company.contact_name],
         ['Phone',            company.phone],
         ['Email',            company.email],
-        ['Roles Provided',   company.roles],
       ])}
     </div>
   `
@@ -227,7 +226,7 @@ function companySection(company) {
 
 function fieldGrid(fields) {
   const filled = fields.filter(([, v]) => v)
-  if (!filled.length) return `<p style="font-size:9px;color:${MUTED}">No information provided.</p>`
+  if (!filled.length) return `<p style="font-size:11px;color:${MUTED}">No information provided.</p>`
   return `<div class="field-grid">
     ${filled.map(([label, value]) => `
       <div class="field">
@@ -272,7 +271,6 @@ function workReportSection(report) {
       <div class="section-title">Work Report Information</div>
       ${fieldGrid([
         ['Report Date',                 formatDate(report.report_date)],
-        ['Supervisor',                  report.supervisor],
         ['PO Number',                   report.po_number],
         ['WO Number',                   report.wo_number],
         ['Roof System Type',            report.data?.roofType],
@@ -347,8 +345,8 @@ function workStatusSection(workStatus) {
   return `
     <div class="section">
       <div class="section-title">Work</div>
-      <div style="font-size:10.5px;font-weight:700;color:${NAVY};margin-bottom:3px">${esc(selected.title)}</div>
-      <div style="font-size:10px;line-height:1.6">${esc(selected.description)}</div>
+      <div style="font-size:12.5px;font-weight:700;color:${NAVY};margin-bottom:3px">${esc(selected.title)}</div>
+      <div style="font-size:12px;line-height:1.6">${esc(selected.description)}</div>
     </div>
   `
 }
@@ -360,7 +358,7 @@ function totalSection(total) {
   return `
     <div class="section total-section">
       <div class="section-title">Total</div>
-      <div class="total-line"><span class="total-label">Total:</span> ${esc(formatted)}</div>
+      <div class="total-line"><span class="total-label">Total:</span> <strong>${esc(formatted)}</strong></div>
     </div>
   `
 }

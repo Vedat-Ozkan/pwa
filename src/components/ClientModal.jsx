@@ -15,7 +15,7 @@ function formatPhone(raw) {
 
 function validate(form) {
   const errors = {}
-  const digits = form.phone.replace(/\D/g, '')
+  const digits = (form.phone ?? '').replace(/\D/g, '')
   if (digits.length > 0 && digits.length < 10)
     errors.phone = 'Invalid phone number'
   if (form.email && !EMAIL_RE.test(form.email.trim()))
@@ -23,17 +23,29 @@ function validate(form) {
   return errors
 }
 
+function normalizeInitial(initial) {
+  if (!initial) return EMPTY
+  return {
+    client_name:     initial.client_name     ?? '',
+    client_address:  initial.client_address  ?? '',
+    billing_address: initial.billing_address ?? '',
+    contact_person:  initial.contact_person  ?? '',
+    phone:           initial.phone           ?? '',
+    email:           initial.email           ?? '',
+  }
+}
+
 const errorStyle = { borderColor: 'var(--danger)' }
 const errorMsg = { fontSize: 12, color: 'var(--danger)' }
 
 export default function ClientModal({ initial, onSave, onDelete, onClose }) {
   useLockBodyScroll()
-  const [form, setForm] = useState(initial ?? EMPTY)
+  const [form, setForm] = useState(normalizeInitial(initial))
   const [touched, setTouched] = useState({})
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    setForm(initial ?? EMPTY)
+    setForm(normalizeInitial(initial))
     setTouched({})
   }, [initial])
 
@@ -44,7 +56,7 @@ export default function ClientModal({ initial, onSave, onDelete, onClose }) {
   const errors = validate(form)
   const hasErrors = Object.keys(errors).length > 0
   const isEdit = !!initial
-  const isDirty = JSON.stringify(form) !== JSON.stringify(initial ?? EMPTY)
+  const isDirty = JSON.stringify(form) !== JSON.stringify(normalizeInitial(initial))
 
   function handleClose() {
     if (!isDirty || window.confirm('You have unsaved changes. Discard?')) onClose()
