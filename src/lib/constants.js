@@ -1,6 +1,6 @@
 export const ROOF_TYPES = ['Asphalt & Gravel', 'Modified Bitumen', 'EPDM', 'TPO', 'PVC', 'Metal', 'Other']
 
-export const SERVICE_TYPES = ['Leak Investigation', 'Repair', 'Maintenance', 'Emergency Service', 'Completion Report']
+export const SERVICE_TYPES = ['Leak Investigation', 'Repair', 'Maintenance', 'Emergency Service', 'Roof Replacement', 'Roof Assessment', 'Completion Report']
 
 export const LEAK_SOURCES = [
   'Drain', 'Vent Pipe', 'Tall Cone', 'Scupper', 'Pitch Pan', 'Field Membrane',

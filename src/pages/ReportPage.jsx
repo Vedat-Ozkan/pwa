@@ -17,6 +17,7 @@ function localToday() {
 
 const EMPTY_FORM = {
   report_date: localToday(),
+  name: '',
   po_number: '',
   wo_number: '',
   roofType: '',
@@ -71,6 +72,7 @@ export default function ReportPage() {
           if (data) {
             const loaded = {
               report_date: data.report_date ?? '',
+              name: data.data?.name ?? '',
               po_number: data.po_number ?? '',
               wo_number: data.wo_number ?? '',
               roofType: data.data?.roofType ?? '',
@@ -136,6 +138,7 @@ export default function ReportPage() {
       po_number: form.po_number,
       wo_number: form.wo_number,
       data: {
+        name: form.name,
         roofType: form.roofType,
         serviceType: form.serviceType,
         leakSources: form.leakSources,
@@ -196,6 +199,13 @@ export default function ReportPage() {
 
         {/* ── Project Information ── */}
         <Section title="Project Information">
+          <Field label="Report Name">
+            <input
+              value={form.name}
+              onChange={setField('name')}
+              placeholder={form.report_date ? (() => { const [y,m,d] = form.report_date.split('-'); return `${m}-${d}-${y}` })() : 'Report name'}
+            />
+          </Field>
           <div className="form-grid form-grid-2">
             <Field label="Report Date">
               <input type="date" value={form.report_date} onChange={setField('report_date')} />
@@ -255,7 +265,7 @@ export default function ReportPage() {
         {/* ── Work Description ── */}
         <Section title="Work Description">
           <div className="form-grid">
-            <Field label="Site Conditions / Findings">
+            <Field label="Site Conditions & Findings">
               <textarea value={form.findings} onChange={setField('findings')}
                 placeholder="Describe site conditions, leak findings, damaged areas…" />
             </Field>
@@ -267,7 +277,7 @@ export default function ReportPage() {
               <textarea value={form.materials} onChange={setField('materials')}
                 placeholder="List materials: membrane, primer, sealant, flashing…" />
             </Field>
-            <Field label="Notes / Recommendations">
+            <Field label="Notes & Recommendations">
               <textarea value={form.notes} onChange={setField('notes')}
                 placeholder="Additional observations or recommendations…" />
             </Field>
@@ -277,7 +287,7 @@ export default function ReportPage() {
         <div className="divider" />
 
         {/* ── Work Status ── */}
-        <Section title="Work">
+        <Section title="Status">
           <div className="check-grid" style={{ gridTemplateColumns: '1fr' }}>
             {WORK_STATUSES.map(w => (
               <label
@@ -317,12 +327,12 @@ export default function ReportPage() {
           <Field label="Total Cost (CAD)">
             <input
               type="number"
-              step="0.01"
+              step="1"
               min="0"
-              inputMode="decimal"
+              inputMode="numeric"
               value={form.total}
               onChange={setField('total')}
-              placeholder="0.00"
+              placeholder="0"
             />
           </Field>
         </Section>
@@ -365,7 +375,7 @@ export default function ReportPage() {
             </div>
             <div className="divider" style={{ margin: '4px 0' }} />
             <div>
-              <h2 className="section-title">Progress</h2>
+              <h2 className="section-title">In Progress</h2>
               <PhotoSection
                 label="progress"
                 photos={form.photos.progress}

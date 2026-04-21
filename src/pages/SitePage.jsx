@@ -3,6 +3,25 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { Toast, useToast } from '../components/Toast.jsx'
 
+function fmtDate(iso) {
+  if (!iso) return 'No date'
+  const [y, m, d] = iso.split('-')
+  return `${m}-${d}-${y}`
+}
+
+function fmtDateTime(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const year = d.getFullYear()
+  let hours = d.getHours()
+  const minutes = String(d.getMinutes()).padStart(2, '0')
+  const ampm = hours >= 12 ? 'PM' : 'AM'
+  hours = hours % 12 || 12
+  return `${month}-${day}-${year} ${hours}:${minutes} ${ampm}`
+}
+
 export default function SitePage() {
   const { clientId, siteId } = useParams()
   const navigate = useNavigate()
@@ -88,8 +107,13 @@ export default function SitePage() {
             <div key={r.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--navy)' }}>
-                  {r.report_date || 'No date'}
+                  {r.data?.name || fmtDate(r.report_date)}
                 </div>
+                {r.updated_at && (
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                    Modified {fmtDateTime(r.updated_at)}
+                  </div>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                 <button className="btn-danger btn-sm" onClick={() => setConfirmDeleteId(r)}>Delete</button>
@@ -122,7 +146,7 @@ export default function SitePage() {
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 300, textAlign: 'center', borderRadius: 'var(--radius)', padding: '24px' }}>
             <h2 className="modal-title">Delete this report?</h2>
             <p style={{ fontSize: 14, color: 'var(--muted)', margin: '0 0 6px' }}>
-              {confirmDeleteId.report_date || 'No date'}
+              {confirmDeleteId.data?.name || fmtDate(confirmDeleteId.report_date)}
             </p>
             <div className="modal-actions">
               <button className="btn-ghost" onClick={() => setConfirmDeleteId(null)}>Cancel</button>

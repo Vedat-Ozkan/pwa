@@ -87,7 +87,7 @@ button:active, .btn:active { opacity: 0.75; }
 /* ─── Forms ─── */
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label {
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--muted);
   text-transform: uppercase;
@@ -126,7 +126,7 @@ select {
 
 /* ─── Section headers ─── */
 .section-title {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 800;
   color: var(--navy);
   margin: 0 0 14px;
