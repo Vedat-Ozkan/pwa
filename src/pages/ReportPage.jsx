@@ -21,11 +21,13 @@ const EMPTY_FORM = {
   po_number: '',
   wo_number: '',
   roofType: '',
+  roofTypeOther: '',
   serviceType: '',
+  serviceTypeOther: '',
   leakSources: [],
   findings: '',
   workPerformed: '',
-  materials: '',
+  materials: [],
   notes: '',
   workStatus: '',
   signedBy: '',
@@ -76,11 +78,13 @@ export default function ReportPage() {
               po_number: data.po_number ?? '',
               wo_number: data.wo_number ?? '',
               roofType: data.data?.roofType ?? '',
+              roofTypeOther: data.data?.roofTypeOther ?? '',
               serviceType: data.data?.serviceType ?? '',
+              serviceTypeOther: data.data?.serviceTypeOther ?? '',
               leakSources: data.data?.leakSources ?? [],
               findings: data.data?.findings ?? '',
               workPerformed: data.data?.workPerformed ?? '',
-              materials: data.data?.materials ?? '',
+              materials: Array.isArray(data.data?.materials) ? data.data.materials : [],
               notes: data.data?.notes ?? '',
               workStatus: data.data?.workStatus ?? '',
               signedBy: data.data?.signedBy ?? '',
@@ -126,6 +130,22 @@ export default function ReportPage() {
     }))
   }
 
+  function addMaterial() {
+    setForm(f => ({ ...f, materials: [...f.materials, { name: '', cost: '' }] }))
+  }
+
+  function updateMaterial(i, key, value) {
+    setForm(f => {
+      const next = [...f.materials]
+      next[i] = { ...next[i], [key]: value }
+      return { ...f, materials: next }
+    })
+  }
+
+  function removeMaterial(i) {
+    setForm(f => ({ ...f, materials: f.materials.filter((_, idx) => idx !== i) }))
+  }
+
   function setPhotos(group) {
     return (photos) => setForm(f => ({ ...f, photos: { ...f.photos, [group]: photos } }))
   }
@@ -140,7 +160,9 @@ export default function ReportPage() {
       data: {
         name: form.name,
         roofType: form.roofType,
+        roofTypeOther: form.roofTypeOther,
         serviceType: form.serviceType,
+        serviceTypeOther: form.serviceTypeOther,
         leakSources: form.leakSources,
         findings: form.findings,
         workPerformed: form.workPerformed,
@@ -229,12 +251,26 @@ export default function ReportPage() {
                 <option value="">Select one</option>
                 {ROOF_TYPES.map(t => <option key={t}>{t}</option>)}
               </select>
+              {form.roofType === 'Other' && (
+                <input
+                  value={form.roofTypeOther}
+                  onChange={setField('roofTypeOther')}
+                  placeholder="Specify roof system type"
+                />
+              )}
             </Field>
             <Field label="Service Type">
               <select value={form.serviceType} onChange={setField('serviceType')}>
                 <option value="">Select one</option>
                 {SERVICE_TYPES.map(t => <option key={t}>{t}</option>)}
               </select>
+              {form.serviceType === 'Other' && (
+                <input
+                  value={form.serviceTypeOther}
+                  onChange={setField('serviceTypeOther')}
+                  placeholder="Specify service type"
+                />
+              )}
             </Field>
           </div>
         </Section>
@@ -274,8 +310,35 @@ export default function ReportPage() {
                 placeholder="Describe work performed in detail…" />
             </Field>
             <Field label="Materials Used">
-              <textarea value={form.materials} onChange={setField('materials')}
-                placeholder="List materials: membrane, primer, sealant, flashing…" />
+              {form.materials.map((m, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                  <input
+                    style={{ flex: 1 }}
+                    value={m.name}
+                    onChange={e => updateMaterial(i, 'name', e.target.value)}
+                    placeholder="Material name"
+                  />
+                  <input
+                    style={{ width: 90 }}
+                    type="number"
+                    step="1"
+                    min="0"
+                    inputMode="numeric"
+                    value={m.cost}
+                    onChange={e => updateMaterial(i, 'cost', e.target.value)}
+                    placeholder="Cost ($)"
+                  />
+                  <button
+                    type="button"
+                    className="btn-danger btn-sm"
+                    onClick={() => removeMaterial(i)}
+                    style={{ flexShrink: 0 }}
+                  >×</button>
+                </div>
+              ))}
+              <button type="button" className="btn-secondary" style={{ width: '100%' }} onClick={addMaterial}>
+                + Add Material
+              </button>
             </Field>
             <Field label="Notes & Recommendations">
               <textarea value={form.notes} onChange={setField('notes')}
@@ -367,6 +430,7 @@ export default function ReportPage() {
               <h2 className="section-title">Before</h2>
               <PhotoSection
                 label="before"
+                displayLabel="Before"
                 photos={form.photos.before}
                 onChange={setPhotos('before')}
                 clientId={clientId}
@@ -378,6 +442,7 @@ export default function ReportPage() {
               <h2 className="section-title">In Progress</h2>
               <PhotoSection
                 label="progress"
+                displayLabel="In Progress"
                 photos={form.photos.progress}
                 onChange={setPhotos('progress')}
                 clientId={clientId}
@@ -389,6 +454,7 @@ export default function ReportPage() {
               <h2 className="section-title">After</h2>
               <PhotoSection
                 label="after"
+                displayLabel="After"
                 photos={form.photos.after}
                 onChange={setPhotos('after')}
                 clientId={clientId}

@@ -104,7 +104,7 @@ function SortablePhoto({ photo, index, onRemove, onCaption }) {
   )
 }
 
-export default function PhotoSection({ label, photos, onChange, clientId, reportId }) {
+export default function PhotoSection({ label, displayLabel, photos, onChange, clientId, reportId }) {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
   useLockBodyScroll(sheetOpen)
@@ -220,7 +220,7 @@ export default function PhotoSection({ label, photos, onChange, clientId, report
         disabled={uploading}
         onClick={() => setSheetOpen(true)}
       >
-        {uploading ? 'Uploading…' : `+ Add ${label} Photos`}
+        {uploading ? 'Uploading…' : `+ Add ${displayLabel ?? label} Photos`}
       </button>
 
       {/* Bottom sheet */}

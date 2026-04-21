@@ -274,8 +274,8 @@ function HTMLPreview({ form, client, site, company }) {
           ['Report Date',                 form.report_date],
           ['PO Number',                   form.po_number],
           ['WO Number',                   form.wo_number],
-          ['Roof System Type',            form.roofType],
-          ['Service Type',                form.serviceType],
+          ['Roof System Type',            form.roofType === 'Other' ? (form.roofTypeOther || 'Other') : form.roofType],
+          ['Service Type',                form.serviceType === 'Other' ? (form.serviceTypeOther || 'Other') : form.serviceType],
         ]} />
       </PreviewSection>
 
@@ -302,7 +302,22 @@ function HTMLPreview({ form, client, site, company }) {
 
       {form.findings     && <PreviewSection title="Site Conditions / Findings"><BodyText>{form.findings}</BodyText></PreviewSection>}
       {form.workPerformed && <PreviewSection title="Work Performed"><BodyText>{form.workPerformed}</BodyText></PreviewSection>}
-      {form.materials    && <PreviewSection title="Materials Used"><BodyText>{form.materials}</BodyText></PreviewSection>}
+      {Array.isArray(form.materials) && form.materials.length > 0 && (
+        <PreviewSection title="Materials Used">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 16px' }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: '#667487', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Material</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: '#667487', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Cost</div>
+            {form.materials.map((m, i) => (
+              <>
+                <div key={`n${i}`} style={{ fontSize: 13, color: '#1d2733', borderTop: '1px solid #eef1f4', paddingTop: 4 }}>{m.name}</div>
+                <div key={`c${i}`} style={{ fontSize: 13, color: '#1d2733', borderTop: '1px solid #eef1f4', paddingTop: 4, textAlign: 'right' }}>
+                  {m.cost ? `$${m.cost}` : '—'}
+                </div>
+              </>
+            ))}
+          </div>
+        </PreviewSection>
+      )}
       {form.notes        && <PreviewSection title="Notes / Recommendations"><BodyText>{form.notes}</BodyText></PreviewSection>}
 
       {(() => {
@@ -336,9 +351,9 @@ function HTMLPreview({ form, client, site, company }) {
         </PreviewSection>
       )}
 
-      {before.length > 0   && <PreviewSection title="Before Photos"><PhotoPreviewGrid photos={before} /></PreviewSection>}
-      {progress.length > 0 && <PreviewSection title="Progress Photos"><PhotoPreviewGrid photos={progress} /></PreviewSection>}
-      {after.length > 0    && <PreviewSection title="After Photos"><PhotoPreviewGrid photos={after} /></PreviewSection>}
+      {before.length > 0   && <PreviewSection title="Before"><PhotoPreviewGrid photos={before} /></PreviewSection>}
+      {progress.length > 0 && <PreviewSection title="In Progress"><PhotoPreviewGrid photos={progress} /></PreviewSection>}
+      {after.length > 0    && <PreviewSection title="After"><PhotoPreviewGrid photos={after} /></PreviewSection>}
       </div>
     </div>
   )
