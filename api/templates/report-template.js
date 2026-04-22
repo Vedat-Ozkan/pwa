@@ -19,7 +19,7 @@ function esc(val) {
 function formatDate(d) {
   if (!d) return '—'
   const [y, m, day] = d.split('-')
-  return `${m}/${day}/${y}`
+  return `${m}-${day}-${y}`
 }
 
 // ── CSS ─────────────────────────────────────────────────────────────────────

@@ -2,13 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { Toast, useToast } from '../components/Toast.jsx'
-import { deleteWithUndo } from '../lib/utils.js'
-
-function fmtDate(iso) {
-  if (!iso) return 'No date'
-  const [y, m, d] = iso.split('-')
-  return `${m}-${d}-${y}`
-}
+import { deleteWithUndo, fmtDate } from '../lib/utils.js'
 
 function fmtDateTime(iso) {
   const d = new Date(iso)
@@ -99,7 +93,7 @@ export default function SitePage() {
             <div key={r.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--navy)' }}>
-                  {r.data?.name || fmtDate(r.report_date)}
+                  {r.data?.name || fmtDate(r.report_date) || 'No date'}
                 </div>
                 {r.updated_at && (
                   <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>

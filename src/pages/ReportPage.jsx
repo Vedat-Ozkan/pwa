@@ -4,16 +4,11 @@ import { supabase } from '../lib/supabase.js'
 import PhotoSection from '../components/PhotoSection.jsx'
 import { Toast, useToast } from '../components/Toast.jsx'
 import ReportPDFPreview from '../components/ReportPDFPreview.jsx'
+import BottomSheetPicker from '../components/BottomSheetPicker.jsx'
 import { ROOF_TYPES, SERVICE_TYPES, LEAK_SOURCES, WORK_STATUSES, COMPANY_ID } from '../lib/constants.js'
-import { randomId } from '../lib/utils.js'
+import { randomId, fmtDate } from '../lib/utils.js'
 
 function replacer(_, v) { return v === undefined ? null : v }
-
-function fmtDate(iso) {
-  if (!iso) return ''
-  const [y, m, d] = iso.split('-')
-  return `${m}-${d}-${y}`
-}
 
 function localToday() {
   const d = new Date()
@@ -249,10 +244,11 @@ export default function ReportPage() {
         <Section title="Roof System">
           <div className="form-grid form-grid-2">
             <Field label="Roof System Type">
-              <select value={form.roofType} onChange={setField('roofType')}>
-                <option value="">Select one</option>
-                {ROOF_TYPES.map(t => <option key={t}>{t}</option>)}
-              </select>
+              <BottomSheetPicker
+                options={ROOF_TYPES}
+                value={form.roofType}
+                onChange={v => setForm(f => ({ ...f, roofType: v }))}
+              />
               {form.roofType === 'Other' && (
                 <input
                   value={form.roofTypeOther}
@@ -262,10 +258,11 @@ export default function ReportPage() {
               )}
             </Field>
             <Field label="Service Type">
-              <select value={form.serviceType} onChange={setField('serviceType')}>
-                <option value="">Select one</option>
-                {SERVICE_TYPES.map(t => <option key={t}>{t}</option>)}
-              </select>
+              <BottomSheetPicker
+                options={SERVICE_TYPES}
+                value={form.serviceType}
+                onChange={v => setForm(f => ({ ...f, serviceType: v }))}
+              />
               {form.serviceType === 'Other' && (
                 <input
                   value={form.serviceTypeOther}

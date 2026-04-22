@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { LEAK_SOURCES, WORK_STATUSES } from '../lib/constants.js'
+import { fmtDate } from '../lib/utils.js'
 
 function runAction(action, { file, url, filename }) {
   if (action === 'share') {
@@ -220,7 +221,7 @@ function HTMLPreview({ form, client, site, company }) {
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 10, color: 'var(--muted)' }}>Report Date</div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--navy)' }}>{form.report_date || '—'}</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--navy)' }}>{fmtDate(form.report_date) || '—'}</div>
         </div>
       </div>
 
@@ -255,7 +256,7 @@ function HTMLPreview({ form, client, site, company }) {
 
       <PreviewSection title="Work Report Information">
         <TwoColGrid fields={[
-          ['Report Date',                 form.report_date],
+          ['Report Date',                 fmtDate(form.report_date)],
           ['PO Number',                   form.po_number],
           ['WO Number',                   form.wo_number],
           ['Roof System Type',            form.roofType === 'Other' ? (form.roofTypeOther || 'Other') : form.roofType],
