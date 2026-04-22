@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react'
 import { useLockBodyScroll } from '../lib/useLockBodyScroll.js'
 
 const EMPTY = {
-  company_name: 'HSX INCORPORATED',
-  contact_name: 'Roberto Hamasato',
-  phone: '(416) 880-8134',
-  email: 'Roberto@hsxroofing.com',
+  company_name: '',
+  contact_name: '',
+  phone: '',
+  email: '',
 }
 
 export default function CompanyModal({ initial, onSave, onClose }) {
@@ -15,7 +15,8 @@ export default function CompanyModal({ initial, onSave, onClose }) {
 
   useEffect(() => { setForm(initial ?? EMPTY) }, [initial])
 
-  const isDirty = JSON.stringify(form) !== JSON.stringify(initial ?? EMPTY)
+  const replacer = (_, v) => v === undefined ? null : v
+  const isDirty = JSON.stringify(form, replacer) !== JSON.stringify(initial ?? EMPTY, replacer)
 
   function set(field) {
     return (e) => setForm(f => ({ ...f, [field]: e.target.value }))

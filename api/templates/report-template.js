@@ -1,28 +1,12 @@
-const NAVY = '#10243e'
-const GOLD = '#c8a85d'
-const MUTED = '#667487'
-const LINE = '#d9e0e7'
-const SOFT = '#f4f6f8'
+import { LEAK_SOURCES, WORK_STATUSES } from '../../src/lib/constants.js'
 
-const LEAK_SOURCES = [
-  'Drain', 'Vent Pipe', 'Tall Cone', 'Scupper', 'Pitch Pan', 'Field Membrane',
-  'HVAC Unit', 'Duct Work', 'Rain Collar', 'Expansion Joint', 'Skylight',
-  'Metal Flashing', 'Plumbing Vent', 'Curbs', 'Perimeter Flashing',
-  'Window', 'Inside Corner', 'Outside Corner',
-  'Supply and Install New Drain',
-  'Snow Cleaning',
-  'Roof Maintenance',
-  'Supply and Install Tall Cones',
-  'Remove Redundant Equipment / Cones',
-  'Other',
-]
-
-const WORK_STATUSES = [
-  { key: 'in_progress',     title: 'Work in Progress',            description: 'Roofing work is currently underway in accordance with the approved scope.' },
-  { key: 'completed',       title: 'Work Completed',              description: 'All work has been successfully completed, and the site has been cleaned and finalized.' },
-  { key: 'waiting_metal',   title: 'Waiting on Sheet Metal Fabrication', description: 'Project is pending fabrication and installation of required sheet metal components.' },
-  { key: 'waiting_approval', title: 'Waiting on Client Approval',  description: 'Project has not commenced and is pending formal approval from the client.' },
-]
+const NAVY        = '#10243e'
+const GOLD        = '#c8a85d'
+const MUTED       = '#667487'
+const LINE        = '#d9e0e7'
+const SOFT        = '#f4f6f8'
+const TEXT        = '#1d2733'
+const SOFT_BORDER = '#eef1f4'
 
 function esc(val) {
   return String(val ?? '')
@@ -46,7 +30,7 @@ const CSS = `
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size: 12px;
-    color: #1d2733;
+    color: ${TEXT};
     line-height: 1.45;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -168,6 +152,35 @@ const CSS = `
     min-height: 30px;
   }
 
+  /* ── Materials table ── */
+  .materials-table { width: 100%; border-collapse: collapse; }
+  .materials-th {
+    font-size: 9px;
+    font-weight: 700;
+    color: ${MUTED};
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-bottom: 4px;
+  }
+  .materials-td {
+    font-size: 11px;
+    padding: 4px 0;
+    border-top: 1px solid ${SOFT_BORDER};
+  }
+
+  /* ── Work status ── */
+  .work-status-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: ${NAVY};
+    margin-bottom: 3px;
+  }
+  .work-status-desc { font-size: 12px; line-height: 1.6; }
+
+  /* ── Utilities ── */
+  .field-empty { font-size: 11px; color: ${MUTED}; }
+  .page-break  { break-before: page; }
+
   /* ── Total ── */
   .total-section { break-inside: avoid; }
   .total-line { font-size: 12px; }
@@ -226,7 +239,7 @@ function companySection(company) {
 
 function fieldGrid(fields) {
   const filled = fields.filter(([, v]) => v)
-  if (!filled.length) return `<p style="font-size:11px;color:${MUTED}">No information provided.</p>`
+  if (!filled.length) return `<p class="field-empty">No information provided.</p>`
   return `<div class="field-grid">
     ${filled.map(([label, value]) => `
       <div class="field">
@@ -307,6 +320,27 @@ function textSection(title, content) {
   `
 }
 
+function materialsSection(materials) {
+  if (!Array.isArray(materials) || !materials.length) return ''
+  const rows = materials.map(m => `
+    <tr>
+      <td class="materials-td">${esc(m.name)}</td>
+      <td class="materials-td" style="text-align:right">${m.cost ? `$${esc(m.cost)}` : '—'}</td>
+    </tr>`).join('')
+  return `
+    <div class="section">
+      <div class="section-title">Materials Used</div>
+      <table class="materials-table">
+        <tr>
+          <th class="materials-th" style="text-align:left">Material</th>
+          <th class="materials-th" style="text-align:right">Cost</th>
+        </tr>
+        ${rows}
+      </table>
+    </div>
+  `
+}
+
 function photoGroup(title, photos) {
   if (!photos?.length) return ''
   return `
@@ -330,7 +364,7 @@ function photosSection(photos) {
   const { before = [], progress = [], after = [] } = photos ?? {}
   if (!before.length && !progress.length && !after.length) return ''
   return `
-    <div class="section" style="break-before: page;">
+    <div class="section page-break">
       <div class="section-title">Photo Documentation</div>
       ${photoGroup('Before Photos', before)}
       ${photoGroup('Progress Photos', progress)}
@@ -345,8 +379,8 @@ function workStatusSection(workStatus) {
   return `
     <div class="section">
       <div class="section-title">Work</div>
-      <div style="font-size:12.5px;font-weight:700;color:${NAVY};margin-bottom:3px">${esc(selected.title)}</div>
-      <div style="font-size:12px;line-height:1.6">${esc(selected.description)}</div>
+      <div class="work-status-title">${esc(selected.title)}</div>
+      <div class="work-status-desc">${esc(selected.description)}</div>
     </div>
   `
 }
@@ -400,7 +434,7 @@ export function generateReportHTML(report, client, site, logoSrc, company) {
   ${leakSection(d.leakSources)}
   ${textSection('Site Conditions / Findings', d.findings)}
   ${textSection('Work Performed', d.workPerformed)}
-  ${textSection('Materials Used', d.materials)}
+  ${materialsSection(d.materials)}
   ${textSection('Notes / Recommendations', d.notes)}
   ${workStatusSection(d.workStatus)}
   ${totalSection(d.total)}

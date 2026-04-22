@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { Toast, useToast } from '../components/Toast.jsx'
+import { deleteWithUndo } from '../lib/utils.js'
 
 function fmtDate(iso) {
   if (!iso) return 'No date'
@@ -10,7 +11,6 @@ function fmtDate(iso) {
 }
 
 function fmtDateTime(iso) {
-  if (!iso) return ''
   const d = new Date(iso)
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
@@ -46,15 +46,7 @@ export default function SitePage() {
   function deleteReport(reportId) {
     const report = reports.find(r => r.id === reportId)
     setConfirmDeleteId(null)
-    setReports(r => r.filter(x => x.id !== reportId))
-
-    let undone = false
-    show('Report deleted', {
-      actionLabel: 'Undo',
-      duration: 5000,
-      onAction: () => { undone = true; setReports(r => [report, ...r]) },
-      onTimeout: async () => { if (!undone) await supabase.from('reports').delete().eq('id', reportId) },
-    })
+    deleteWithUndo({ item: report, setItems: setReports, table: 'reports', label: 'Report deleted', show })
   }
 
   if (loading) {

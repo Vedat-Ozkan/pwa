@@ -113,36 +113,20 @@ export default function ReportPDFPreview({ form, client, site, company, reportId
         <>
           <StatusPill status={isDirty ? 'dirty' : status} />
           {(() => {
-            // Busy = PDF is being prepared (cached miss + prefetching) OR a click is in flight.
-            // When dirty we still allow clicks, since the click itself triggers save+regenerate.
             const busy = pending !== null || (status === 'loading' && !isDirty)
+            const btnStyle = {
+              flex: 1, color: '#fff', border: 'none', borderRadius: 12,
+              padding: '13px 16px', fontSize: 15, fontWeight: 700,
+              cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.55 : 1,
+            }
             return (
           <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              type="button"
-              onClick={() => onAction('download')}
-              disabled={busy}
-              style={{
-                flex: 1, background: '#2860b8', color: '#fff', border: 'none',
-                borderRadius: 12, padding: '13px 16px', fontSize: 15, fontWeight: 700,
-                cursor: busy ? 'not-allowed' : 'pointer',
-                opacity: busy ? 0.55 : 1,
-              }}
-            >
+            <button type="button" onClick={() => onAction('download')} disabled={busy}
+              style={{ ...btnStyle, background: '#2860b8' }}>
               {pending === 'download' ? 'Preparing…' : '↓ Download'}
             </button>
-            <button
-              type="button"
-              onClick={() => onAction('share')}
-              disabled={busy}
-              style={{
-                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                background: '#1a7d35', color: '#fff', border: 'none',
-                borderRadius: 12, padding: '13px 16px', fontSize: 15, fontWeight: 700,
-                cursor: busy ? 'not-allowed' : 'pointer',
-                opacity: busy ? 0.55 : 1,
-              }}
-            >
+            <button type="button" onClick={() => onAction('share')} disabled={busy}
+              style={{ ...btnStyle, background: '#1a7d35' }}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
                 <polyline points="16 6 12 2 8 6"/>
@@ -224,19 +208,19 @@ function HTMLPreview({ form, client, site, company }) {
       {/* Header */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        borderBottom: '2px solid #d9e0e7', paddingBottom: 14, marginBottom: 18,
+        borderBottom: '2px solid var(--line)', paddingBottom: 14, marginBottom: 18,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <img src="/logo_hsx.png"
             alt="HSX" style={{ height: 46, background: '#fff', borderRadius: 6, padding: 3 }} />
           <div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: '#10243e' }}>{companyName} Field Report</div>
-            <div style={{ fontSize: 11, color: '#667487', marginTop: 2 }}>Prepared by {companyName}</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--navy)' }}>{companyName} Field Report</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Prepared by {companyName}</div>
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 10, color: '#667487' }}>Report Date</div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#10243e' }}>{form.report_date || '—'}</div>
+          <div style={{ fontSize: 10, color: 'var(--muted)' }}>Report Date</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--navy)' }}>{form.report_date || '—'}</div>
         </div>
       </div>
 
@@ -288,12 +272,12 @@ function HTMLPreview({ form, client, site, company }) {
                 <div style={{
                   width: 13, height: 13, borderRadius: 3, flexShrink: 0,
                   border: checked ? 'none' : '1.5px solid #b0bec5',
-                  background: checked ? '#10243e' : '#fff',
+                  background: checked ? 'var(--navy)' : '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                   {checked && <span style={{ color: '#fff', fontSize: 9, lineHeight: 1, fontWeight: 900 }}>✓</span>}
                 </div>
-                <span style={{ fontSize: 12, color: checked ? '#10243e' : '#9eaab6', fontWeight: checked ? 700 : 400 }}>{l}</span>
+                <span style={{ fontSize: 12, color: checked ? 'var(--navy)' : '#9eaab6', fontWeight: checked ? 700 : 400 }}>{l}</span>
               </div>
             )
           })}
@@ -305,16 +289,20 @@ function HTMLPreview({ form, client, site, company }) {
       {Array.isArray(form.materials) && form.materials.length > 0 && (
         <PreviewSection title="Materials Used">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 16px' }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: '#667487', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Material</div>
-            <div style={{ fontSize: 9, fontWeight: 700, color: '#667487', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Cost</div>
-            {form.materials.map((m, i) => (
-              <>
-                <div key={`n${i}`} style={{ fontSize: 13, color: '#1d2733', borderTop: '1px solid #eef1f4', paddingTop: 4 }}>{m.name}</div>
-                <div key={`c${i}`} style={{ fontSize: 13, color: '#1d2733', borderTop: '1px solid #eef1f4', paddingTop: 4, textAlign: 'right' }}>
-                  {m.cost ? `$${m.cost}` : '—'}
-                </div>
+            {(() => {
+              const colHead = { fontSize: 9, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }
+              const cell = { fontSize: 13, color: 'var(--text)', borderTop: '1px solid #eef1f4', paddingTop: 4 }
+              return <>
+                <div style={colHead}>Material</div>
+                <div style={{ ...colHead, textAlign: 'right' }}>Cost</div>
+                {form.materials.map((m, i) => (
+                  <>
+                    <div key={`n${i}`} style={cell}>{m.name}</div>
+                    <div key={`c${i}`} style={{ ...cell, textAlign: 'right' }}>{m.cost ? `$${m.cost}` : '—'}</div>
+                  </>
+                ))}
               </>
-            ))}
+            })()}
           </div>
         </PreviewSection>
       )}
@@ -325,8 +313,8 @@ function HTMLPreview({ form, client, site, company }) {
         if (!selected) return null
         return (
           <PreviewSection title="Work">
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#10243e', marginBottom: 3 }}>{selected.title}</div>
-            <div style={{ fontSize: 13, color: '#1d2733', lineHeight: 1.6 }}>{selected.description}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--navy)', marginBottom: 3 }}>{selected.title}</div>
+            <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6 }}>{selected.description}</div>
           </PreviewSection>
         )
       })()}
@@ -334,7 +322,7 @@ function HTMLPreview({ form, client, site, company }) {
       {form.total !== '' && Number.isFinite(parseFloat(form.total)) && (
         <PreviewSection title="Total">
           <div style={{ fontSize: 13 }}>
-            <span style={{ fontWeight: 700, color: '#10243e' }}>Total: </span>
+            <span style={{ fontWeight: 700, color: 'var(--navy)' }}>Total: </span>
             <strong>{parseFloat(form.total).toLocaleString('en-US', { style: 'currency', currency: 'CAD' })}</strong>
           </div>
         </PreviewSection>
@@ -342,10 +330,10 @@ function HTMLPreview({ form, client, site, company }) {
 
       {form.signedBy && (
         <PreviewSection title="Signature" style={{ marginTop: 40 }}>
-          <div style={{ fontStyle: 'italic', fontSize: 22, fontFamily: 'Georgia, serif', color: '#10243e' }}>
+          <div style={{ fontStyle: 'italic', fontSize: 22, fontFamily: 'Georgia, serif', color: 'var(--navy)' }}>
             {form.signedBy}
           </div>
-          <div style={{ borderTop: '1px solid #10243e', marginTop: 4, paddingTop: 4, fontSize: 11, color: '#667487' }}>
+          <div style={{ borderTop: '1px solid var(--navy)', marginTop: 4, paddingTop: 4, fontSize: 11, color: 'var(--muted)' }}>
             Authorized Signature
           </div>
         </PreviewSection>
@@ -363,8 +351,8 @@ function PreviewSection({ title, children, style }) {
   return (
     <div style={{ marginBottom: 18, ...style }}>
       <div style={{
-        fontSize: 11, fontWeight: 800, color: '#10243e',
-        borderBottom: '1px solid #d9e0e7', paddingBottom: 5, marginBottom: 10,
+        fontSize: 11, fontWeight: 800, color: 'var(--navy)',
+        borderBottom: '1px solid var(--line)', paddingBottom: 5, marginBottom: 10,
         textTransform: 'uppercase', letterSpacing: '0.05em',
       }}>{title}</div>
       {children}
@@ -374,13 +362,13 @@ function PreviewSection({ title, children, style }) {
 
 function TwoColGrid({ fields }) {
   const filled = fields.filter(([, v]) => v)
-  if (!filled.length) return <p style={{ margin: 0, fontSize: 13, color: '#667487' }}>No information entered.</p>
+  if (!filled.length) return <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>No information entered.</p>
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
       {filled.map(([label, value]) => (
         <div key={label}>
-          <div style={{ fontSize: 9, fontWeight: 700, color: '#667487', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{label}</div>
-          <div style={{ fontSize: 13, color: '#1d2733' }}>{value}</div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{label}</div>
+          <div style={{ fontSize: 13, color: 'var(--text)' }}>{value}</div>
         </div>
       ))}
     </div>
@@ -401,14 +389,14 @@ function PhotoPreviewGrid({ photos }) {
           {row.map((p, pi) => (
             <div key={pi}>
               <div style={{
-                width: '100%', height: 380, background: '#f4f6f8',
+                width: '100%', height: 380, background: 'var(--bg)',
                 overflow: 'hidden', display: 'flex',
                 alignItems: 'center', justifyContent: 'center', borderRadius: 3,
               }}>
                 <img src={p.url} alt={p.caption || `Photo ${pi + 1}`}
                   style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
               </div>
-              <div style={{ fontSize: 10, color: '#667487', marginTop: 5, textAlign: 'center', lineHeight: 1.4, minHeight: 30 }}>
+              <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 5, textAlign: 'center', lineHeight: 1.4, minHeight: 30 }}>
                 {p.caption || ''}
               </div>
             </div>

@@ -135,7 +135,7 @@ describe('ReportPage — new report', () => {
     expect(dateInput.value).toBe(expected)
   })
 
-  it('shows all 19 leak source checkboxes', async () => {
+  it('shows all leak source checkboxes', async () => {
     renderNewReport()
     await waitFor(() => screen.getByText('Leak Source'))
     expect(screen.getAllByRole('checkbox')).toHaveLength(LEAK_SOURCES.length)

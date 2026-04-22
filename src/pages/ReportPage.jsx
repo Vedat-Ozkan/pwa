@@ -4,7 +4,16 @@ import { supabase } from '../lib/supabase.js'
 import PhotoSection from '../components/PhotoSection.jsx'
 import { Toast, useToast } from '../components/Toast.jsx'
 import ReportPDFPreview from '../components/ReportPDFPreview.jsx'
-import { ROOF_TYPES, SERVICE_TYPES, LEAK_SOURCES, WORK_STATUSES } from '../lib/constants.js'
+import { ROOF_TYPES, SERVICE_TYPES, LEAK_SOURCES, WORK_STATUSES, COMPANY_ID } from '../lib/constants.js'
+import { randomId } from '../lib/utils.js'
+
+function replacer(_, v) { return v === undefined ? null : v }
+
+function fmtDate(iso) {
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-')
+  return `${m}-${d}-${y}`
+}
 
 function localToday() {
   const d = new Date()
@@ -49,14 +58,7 @@ export default function ReportPage() {
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
   const [savedVersion, setSavedVersion] = useState(0)
-  const [reportDbId] = useState(() => {
-    // crypto.randomUUID() may not exist on older Android WebViews
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-      const r = Math.random() * 16 | 0
-      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16)
-    })
-  })
+  const [reportDbId] = useState(randomId)
 
   const effectiveReportId = isNew ? reportDbId : reportId
 
@@ -65,7 +67,7 @@ export default function ReportPage() {
       .then(({ data }) => { if (data) setClient(data) })
     supabase.from('job_sites').select('*').eq('id', siteId).single()
       .then(({ data }) => { if (data) setSite(data) })
-    supabase.from('company_settings').select('*').eq('id', 1).single()
+    supabase.from('company_settings').select('*').eq('id', COMPANY_ID).single()
       .then(({ data }) => { if (data) setCompany(data) })
 
     if (!isNew) {
@@ -99,7 +101,7 @@ export default function ReportPage() {
     }
   }, [clientId, siteId, reportId, isNew])
 
-  const isDirty = JSON.stringify(form) !== JSON.stringify(savedForm.current)
+  const isDirty = JSON.stringify(form, replacer) !== JSON.stringify(savedForm.current, replacer)
 
   useEffect(() => {
     if (!isDirty) return
@@ -225,7 +227,7 @@ export default function ReportPage() {
             <input
               value={form.name}
               onChange={setField('name')}
-              placeholder={form.report_date ? (() => { const [y,m,d] = form.report_date.split('-'); return `${m}-${d}-${y}` })() : 'Report name'}
+              placeholder={fmtDate(form.report_date) || 'Report name'}
             />
           </Field>
           <div className="form-grid form-grid-2">
@@ -435,6 +437,7 @@ export default function ReportPage() {
                 onChange={setPhotos('before')}
                 clientId={clientId}
                 reportId={effectiveReportId}
+                onError={show}
               />
             </div>
             <div className="divider" style={{ margin: '4px 0' }} />
@@ -447,6 +450,7 @@ export default function ReportPage() {
                 onChange={setPhotos('progress')}
                 clientId={clientId}
                 reportId={effectiveReportId}
+                onError={show}
               />
             </div>
             <div className="divider" style={{ margin: '4px 0' }} />
@@ -459,6 +463,7 @@ export default function ReportPage() {
                 onChange={setPhotos('after')}
                 clientId={clientId}
                 reportId={effectiveReportId}
+                onError={show}
               />
             </div>
           </div>

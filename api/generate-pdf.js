@@ -2,6 +2,7 @@ import puppeteer from 'puppeteer-core'
 import sharp from 'sharp'
 import { createClient } from '@supabase/supabase-js'
 import { generateReportHTML } from './templates/report-template.js'
+import { COMPANY_ID } from '../src/lib/constants.js'
 
 // Hosted Chromium binary — match @sparticuz/chromium-min installed version
 const CHROMIUM_URL =
@@ -121,7 +122,7 @@ export default async function handler(req, res) {
   const logoSrc = `${protocol}://${req.headers.host}/logo_hsx.png`
 
   const { data: company } = await supabase
-    .from('company_settings').select('*').eq('id', 1).single()
+    .from('company_settings').select('*').eq('id', COMPANY_ID).single()
 
   // Inline all photos as base64 before handing HTML to Puppeteer — avoids
   // sequential network fetches inside the headless browser.

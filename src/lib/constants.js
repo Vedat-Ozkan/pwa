@@ -1,3 +1,5 @@
+export const COMPANY_ID = 1
+
 export const ROOF_TYPES = ['Asphalt & Gravel', 'Modified Bitumen', 'EPDM', 'TPO', 'PVC', 'Metal', 'Other']
 
 export const SERVICE_TYPES = ['Leak Investigation', 'Repair', 'Maintenance', 'Emergency Service', 'Roof Replacement', 'Roof Assessment', 'Completion Report', 'Installation of Tall Cones', 'Installation of HVAC Curbs', 'Shingle Replacement', 'Other']

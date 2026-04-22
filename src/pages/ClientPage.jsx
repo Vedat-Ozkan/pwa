@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase.js'
 import ClientModal from '../components/ClientModal.jsx'
 import SiteModal from '../components/SiteModal.jsx'
 import { Toast, useToast } from '../components/Toast.jsx'
+import { deleteWithUndo } from '../lib/utils.js'
 
 export default function ClientPage() {
   const { clientId } = useParams()
@@ -54,15 +55,7 @@ export default function ClientPage() {
   function deleteSite(siteId) {
     const site = sites.find(s => s.id === siteId)
     setSiteModal(null)
-    setSites(s => s.filter(x => x.id !== siteId))
-
-    let undone = false
-    show(`Property deleted`, {
-      actionLabel: 'Undo',
-      duration: 5000,
-      onAction: () => { undone = true; setSites(s => [site, ...s]) },
-      onTimeout: async () => { if (!undone) await supabase.from('job_sites').delete().eq('id', siteId) },
-    })
+    deleteWithUndo({ item: site, setItems: setSites, table: 'job_sites', label: 'Property deleted', show })
   }
 
   if (loading) {

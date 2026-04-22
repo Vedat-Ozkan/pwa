@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
+import ClientModal from '../components/ClientModal.jsx'
+import CompanyModal from '../components/CompanyModal.jsx'
+import { Toast, useToast } from '../components/Toast.jsx'
+import { COMPANY_ID } from '../lib/constants.js'
+import { deleteWithUndo } from '../lib/utils.js'
 
 async function signOut() {
   await supabase.auth.signOut()
 }
-import ClientModal from '../components/ClientModal.jsx'
-import CompanyModal from '../components/CompanyModal.jsx'
-import { Toast, useToast } from '../components/Toast.jsx'
 
 export default function ClientsPage() {
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(null)
   const [modal, setModal] = useState(null) // null | 'new' | { client object }
   const [companyModal, setCompanyModal] = useState(false)
   const [company, setCompany] = useState(null)
@@ -24,12 +27,12 @@ export default function ClientsPage() {
   }, [])
 
   async function fetchCompany() {
-    const { data } = await supabase.from('company_settings').select('*').eq('id', 1).single()
+    const { data } = await supabase.from('company_settings').select('*').eq('id', COMPANY_ID).single()
     if (data) setCompany(data)
   }
 
   async function handleCompanySave(form) {
-    const { error } = await supabase.from('company_settings').update(form).eq('id', 1)
+    const { error } = await supabase.from('company_settings').update(form).eq('id', COMPANY_ID)
     if (!error) { show('Company updated'); setCompanyModal(false); fetchCompany() }
   }
 
@@ -38,7 +41,8 @@ export default function ClientsPage() {
       .from('clients')
       .select('*')
       .order('client_name', { ascending: true })
-    if (!error) setClients(data)
+    if (error) setFetchError('Could not load clients — check your connection.')
+    else setClients(data)
     setLoading(false)
   }
 
@@ -63,19 +67,12 @@ export default function ClientsPage() {
   function handleDelete() {
     const client = modal
     setModal(null)
-    setClients(c => c.filter(x => x.id !== client.id))
-
-    let undone = false
-    show(`"${client.client_name}" deleted`, {
-      actionLabel: 'Undo',
-      duration: 5000,
-      onAction: () => {
-        undone = true
-        setClients(c => [client, ...c])
-      },
-      onTimeout: async () => {
-        if (!undone) await supabase.from('clients').delete().eq('id', client.id)
-      },
+    deleteWithUndo({
+      item: client,
+      setItems: setClients,
+      table: 'clients',
+      label: `"${client.client_name}" deleted`,
+      show,
     })
   }
 
@@ -132,7 +129,11 @@ export default function ClientsPage() {
       <main className="page" style={{ paddingTop: 20 }}>
         {loading && <p style={{ color: 'var(--muted)', textAlign: 'center' }}>Loading…</p>}
 
-        {!loading && clients.length === 0 && (
+        {!loading && fetchError && (
+          <p style={{ color: 'var(--danger)', textAlign: 'center' }}>{fetchError}</p>
+        )}
+
+        {!loading && !fetchError && clients.length === 0 && (
           <div className="empty-state">
             <div style={{ fontSize: 40 }}>🏢</div>
             <p>No clients yet. Tap <strong>+ New Client</strong> to get started.</p>

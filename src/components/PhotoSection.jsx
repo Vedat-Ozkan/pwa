@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase.js'
 import { useLockBodyScroll } from '../lib/useLockBodyScroll.js'
+import { randomId } from '../lib/utils.js'
 import {
   DndContext,
   closestCenter,
@@ -24,14 +25,6 @@ const COMPRESSION_OPTS = {
   maxWidthOrHeight: 1920,
   useWebWorker: true,
   fileType: 'image/jpeg',
-}
-
-function randomId() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = Math.random() * 16 | 0
-    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16)
-  })
 }
 
 function SortablePhoto({ photo, index, onRemove, onCaption }) {
@@ -104,7 +97,7 @@ function SortablePhoto({ photo, index, onRemove, onCaption }) {
   )
 }
 
-export default function PhotoSection({ label, displayLabel, photos, onChange, clientId, reportId }) {
+export default function PhotoSection({ label, displayLabel, photos, onChange, clientId, reportId, onError }) {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
   useLockBodyScroll(sheetOpen)
@@ -165,6 +158,7 @@ export default function PhotoSection({ label, displayLabel, photos, onChange, cl
       }
     }
     if (added.length) onChange([...photos, ...added])
+    if (added.length < files.length) onError?.('Some photos failed to upload — check your connection.')
     setUploading(false)
   }
 
