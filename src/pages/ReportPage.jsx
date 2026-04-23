@@ -34,7 +34,7 @@ const EMPTY_FORM = {
   materials: [],
   notes: '',
   workStatus: '',
-  signedBy: '',
+  signedBy: 'Roberto Hamasato',
   total: '',
   photos: { before: [], progress: [], after: [] },
 }
@@ -211,7 +211,6 @@ export default function ReportPage() {
         <span className="topbar-title">
           {client?.client_name ?? ''}{site?.corporation_name ? ` — ${site.corporation_name}` : ''}{site?.job_address ? ` — ${site.job_address}` : ''}
         </span>
-        <button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
       </header>
 
       <main className="page" style={{ paddingTop: 20, paddingBottom: 0 }}>

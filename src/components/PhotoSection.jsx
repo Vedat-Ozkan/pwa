@@ -142,23 +142,22 @@ export default function PhotoSection({ label, displayLabel, photos, onChange, cl
     setSheetOpen(false)
     setUploading(true)
 
-    const added = []
-    for (const file of files) {
-      try {
-        const compressed = await imageCompression(file, COMPRESSION_OPTS)
-        const path = `${clientId}/${reportId}/${label}/${randomId()}.jpg`
-        const { error } = await supabase.storage
-          .from('report-photos')
-          .upload(path, compressed, { contentType: 'image/jpeg', upsert: false })
-        if (error) { console.error(error); continue }
-        const { data: { publicUrl } } = supabase.storage.from('report-photos').getPublicUrl(path)
-        added.push({ url: publicUrl, caption: '', path })
-      } catch (err) {
-        console.error('Upload error:', err)
-      }
-    }
+    const results = await Promise.allSettled(files.map(async (file) => {
+      const compressed = await imageCompression(file, COMPRESSION_OPTS)
+      const path = `${clientId}/${reportId}/${label}/${randomId()}.jpg`
+      const { error } = await supabase.storage
+        .from('report-photos')
+        .upload(path, compressed, { contentType: 'image/jpeg', upsert: false })
+      if (error) throw error
+      const { data: { publicUrl } } = supabase.storage.from('report-photos').getPublicUrl(path)
+      return { url: publicUrl, caption: '', path }
+    }))
+
+    const added = results.filter(r => r.status === 'fulfilled').map(r => r.value)
+    const failed = results.filter(r => r.status === 'rejected')
+    if (failed.length) failed.forEach(r => console.error('Upload error:', r.reason))
     if (added.length) onChange([...photos, ...added])
-    if (added.length < files.length) onError?.('Some photos failed to upload — check your connection.')
+    if (failed.length) onError?.(`${failed.length} photo${failed.length > 1 ? 's' : ''} failed to upload — check your connection.`)
     setUploading(false)
   }
 

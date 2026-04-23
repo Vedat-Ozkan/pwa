@@ -113,6 +113,7 @@ export default function ClientPage() {
             style={{
               width: '100%', padding: '11px 14px', fontSize: 15,
               border: '1px solid var(--line)', borderRadius: 10, background: '#fff',
+              color: '#374151',
             }}
           />
         </div>

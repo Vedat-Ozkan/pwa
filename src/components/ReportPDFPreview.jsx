@@ -2,21 +2,27 @@ import { useState, useRef, useEffect } from 'react'
 import { LEAK_SOURCES, WORK_STATUSES } from '../lib/constants.js'
 import { fmtDate } from '../lib/utils.js'
 
-function runAction(action, { file, url, filename }) {
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent)
+
+// iosWin: a pre-opened window from the original gesture (needed when runAction
+// is called from async code — iOS blocks window.open/navigator.share without
+// a live user gesture, but a pre-opened window can still be navigated).
+function runAction(action, { file, url, filename }, iosWin = null) {
   if (action === 'share') {
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    if (!iosWin && navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({ files: [file], title: filename }).catch(err => {
         if (err?.name !== 'AbortError') console.error('Share failed:', err)
       })
     } else {
-      window.open(url, '_blank')
+      const win = iosWin ?? window.open(url, '_blank')
+      if (win && iosWin) win.location = url
     }
     return
   }
   // download
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
-  if (isIOS) {
-    window.open(url, '_blank')
+  if (isIOS()) {
+    const win = iosWin ?? window.open(url, '_blank')
+    if (win && iosWin) win.location = url
     return
   }
   const objUrl = URL.createObjectURL(file)
@@ -34,6 +40,7 @@ export default function ReportPDFPreview({ form, client, site, company, reportId
   const [pending, setPending] = useState(null) // 'share' | 'download' | null
   const [retryKey, setRetryKey] = useState(0)
   const pendingRef = useRef(null)
+  const pendingWinRef = useRef(null)
 
   // Prepare the PDF whenever the saved version changes (or on mount for an
   // existing report). Bytes are fetched into a File held in state so Share
@@ -63,9 +70,11 @@ export default function ReportPDFPreview({ form, client, site, company, reportId
         setStatus('ready')
         if (pendingRef.current) {
           const action = pendingRef.current
+          const win = pendingWinRef.current
           pendingRef.current = null
+          pendingWinRef.current = null
           setPending(null)
-          runAction(action, next)
+          runAction(action, next, win)
         }
       } catch (err) {
         if (cancelled) return
@@ -80,12 +89,16 @@ export default function ReportPDFPreview({ form, client, site, company, reportId
     // Dirty form → save first. The save bumps savedVersion, which restarts
     // the prefetch effect; the queued action fires when the fresh PDF lands.
     if (isDirty && onSave) {
+      // Pre-open a window now while we're in the gesture handler — iOS blocks
+      // window.open/navigator.share from async code after gesture expires.
+      pendingWinRef.current = isIOS() ? (window.open('', '_blank') ?? null) : null
       pendingRef.current = action
       setPending(action)
       const ok = await onSave()
       if (!ok) {
         pendingRef.current = null
         setPending(null)
+        if (pendingWinRef.current) { pendingWinRef.current.close(); pendingWinRef.current = null }
       }
       return
     }

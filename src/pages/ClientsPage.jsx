@@ -18,6 +18,7 @@ export default function ClientsPage() {
   const [modal, setModal] = useState(null) // null | 'new' | { client object }
   const [companyModal, setCompanyModal] = useState(false)
   const [company, setCompany] = useState(null)
+  const [search, setSearch] = useState('')
   const { toast, show } = useToast()
   const navigate = useNavigate()
 
@@ -140,8 +141,26 @@ export default function ClientsPage() {
           </div>
         )}
 
+        <div style={{ marginBottom: 14 }}>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search clients…"
+            style={{
+              width: '100%', padding: '11px 14px', fontSize: 15,
+              border: '1px solid var(--line)', borderRadius: 10, background: '#fff',
+              color: '#374151',
+            }}
+          />
+        </div>
+
         <div style={{ display: 'grid', gap: 12 }}>
-          {clients.map(c => (
+          {clients.filter(c => {
+            const q = search.trim().toLowerCase()
+            if (!q) return true
+            return (c.client_name || '').toLowerCase().includes(q)
+              || (c.client_address || '').toLowerCase().includes(q)
+          }).map(c => (
             <div key={c.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--navy)' }}>{c.client_name}</div>

@@ -97,7 +97,10 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: 'Report not found', detail: error?.message })
   }
 
-  const filename = `HSX-Report-${report.report_date || 'draft'}.pdf`
+  const reportLabel = report.data?.name || (report.report_date
+    ? new Date(report.report_date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }).replace(/\//g, ' ')
+    : 'Draft')
+  const filename = `HSX Report ${reportLabel}.pdf`
   const storagePath = `${reportId}.pdf`
   const publicUrl = `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/report-pdfs/${storagePath}`
 
