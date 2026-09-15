@@ -13,9 +13,11 @@ const CHROMIUM_URL =
 // compressed to 800px client-side (see PhotoSection.jsx), so this mostly
 // re-encodes at a lower quality for the PDF — the resize is a no-op safety
 // net for older photos uploaded before that cap existed. Done server-side
-// with sharp since Supabase image transforms are Pro-plan only.
+// with sharp since Supabase image transforms are Pro-plan only. Quality 60
+// keeps the generated PDF itself smaller, since it sticks around for a full
+// year (see cleanup-storage.js) after the source photos are long gone.
 const PHOTO_WIDTH = 800
-const PHOTO_QUALITY = 70
+const PHOTO_QUALITY = 60
 
 async function inlinePhoto(photo) {
   if (!photo?.url) return photo
@@ -97,6 +99,13 @@ export default async function handler(req, res) {
   if (error || !report) {
     console.error('Supabase fetch error:', error)
     return res.status(404).json({ error: 'Report not found', detail: error?.message })
+  }
+
+  // Reports older than a year have their PDF deleted (cleanup-storage.js) —
+  // by then the source photos are long gone too, so regenerating would just
+  // produce a photo-less PDF. Refuse instead of silently faking one.
+  if (report.pdf_deleted_at) {
+    return res.status(410).json({ error: 'PDF deleted', pdfDeletedAt: report.pdf_deleted_at })
   }
 
   const reportLabel = report.data?.name || (report.report_date

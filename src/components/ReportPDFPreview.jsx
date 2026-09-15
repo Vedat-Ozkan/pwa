@@ -51,6 +51,11 @@ export default function ReportPDFPreview({ form, client, site, company, reportId
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ reportId }),
         })
+        if (res.status === 410) {
+          if (cancelled) return
+          setStatus('deleted')
+          return
+        }
         if (!res.ok) throw new Error(`Server ${res.status}`)
         const { url, filename } = await res.json()
         if (cancelled) return
@@ -110,6 +115,10 @@ export default function ReportPDFPreview({ form, client, site, company, reportId
       {isNew ? (
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>
           Save the report first to download or share the PDF.
+        </p>
+      ) : status === 'deleted' ? (
+        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>
+          This report is over a year old — its PDF was removed to save storage space.
         </p>
       ) : (
         <>

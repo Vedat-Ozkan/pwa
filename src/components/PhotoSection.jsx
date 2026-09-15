@@ -22,10 +22,13 @@ import { CSS } from '@dnd-kit/utilities'
 
 // 800px matches the width generate-pdf.js renders photos at (PHOTO_WIDTH) —
 // uploading any larger just means every PDF regen and editor thumbnail
-// re-fetches bytes that get thrown away at render time.
+// re-fetches bytes that get thrown away at render time. Quality matches
+// PHOTO_QUALITY there too — no point storing the source sharper than the
+// PDF it ends up in.
 const COMPRESSION_OPTS = {
   maxSizeMB: 1.5,
   maxWidthOrHeight: 800,
+  initialQuality: 0.7,
   useWebWorker: true,
   fileType: 'image/jpeg',
 }

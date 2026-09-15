@@ -25,13 +25,13 @@
       "maxDuration": 60,
       "memory": 1024
     },
-    "api/cleanup-photos.js": {
+    "api/cleanup-storage.js": {
       "maxDuration": 60
     }
   },
   "crons": [
     {
-      "path": "/api/cleanup-photos",
+      "path": "/api/cleanup-storage",
       "schedule": "0 8 * * *"
     }
   ]

@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js'
 // get purged eventually so abandoned drafts don't accumulate storage forever.
 const RETENTION_DAYS = 21
 const NO_PDF_RETENTION_DAYS = 60
+const PDF_RETENTION_DAYS = 365
 const DAY_MS = 24 * 60 * 60 * 1000
 
 // PhotoSection.jsx uploads to report-photos under {clientId}/{reportId}/...
@@ -70,6 +71,44 @@ async function sweepOrphanedPhotos(supabase) {
   }
 
   return { checked, removed }
+}
+
+// By a year old, the source photos are long gone (purged after 21-60 days),
+// so a deleted PDF can never be regenerated. api/generate-pdf.js refuses to
+// try once pdf_deleted_at is set, showing a message instead.
+async function sweepOldPdfs(supabase) {
+  const cutoff = new Date(Date.now() - PDF_RETENTION_DAYS * DAY_MS).toISOString()
+
+  const { data: candidates, error } = await supabase
+    .from('reports')
+    .select('id, pdf_path')
+    .not('pdf_path', 'is', null)
+    .is('pdf_deleted_at', null)
+    .lt('updated_at', cutoff)
+
+  if (error) {
+    console.error('PDF sweep query failed:', error)
+    return { checked: 0, deleted: 0 }
+  }
+
+  const outcomes = await Promise.all((candidates ?? []).map(async (report) => {
+    const { error: rmErr } = await supabase.storage.from('report-pdfs').remove([report.pdf_path])
+    if (rmErr) {
+      console.error(`Failed to remove pdf for report ${report.id}:`, rmErr.message)
+      return false
+    }
+    const { error: updErr } = await supabase
+      .from('reports')
+      .update({ pdf_path: null, pdf_generated_at: null, pdf_deleted_at: new Date().toISOString() })
+      .eq('id', report.id)
+    if (updErr) {
+      console.error(`Failed to mark report ${report.id} pdf-deleted:`, updErr.message)
+      return false
+    }
+    return true
+  }))
+
+  return { checked: candidates?.length ?? 0, deleted: outcomes.filter(Boolean).length }
 }
 
 export default async function handler(req, res) {
@@ -143,9 +182,11 @@ export default async function handler(req, res) {
   const skipped = outcomes.filter(o => o === 'skipped').length
 
   const orphans = await sweepOrphanedPhotos(supabase)
+  const pdfs = await sweepOldPdfs(supabase)
 
   return res.status(200).json({
     checked: candidates?.length ?? 0, purged, skipped,
     orphansChecked: orphans.checked, orphansRemoved: orphans.removed,
+    pdfsChecked: pdfs.checked, pdfsDeleted: pdfs.deleted,
   })
 }
