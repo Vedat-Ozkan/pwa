@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase.js'
 import ClientModal from '../components/ClientModal.jsx'
 import SiteModal from '../components/SiteModal.jsx'
 import { Toast, useToast } from '../components/Toast.jsx'
-import { deleteWithUndo } from '../lib/utils.js'
+import { deleteWithUndo, deleteReportFiles } from '../lib/utils.js'
 
 export default function ClientPage() {
   const { clientId } = useParams()
@@ -38,6 +38,12 @@ export default function ClientPage() {
 
   async function handleClientDelete() {
     if (!window.confirm('Delete this client and all their properties/reports?')) return
+    const { data: clientSites } = await supabase.from('job_sites').select('id').eq('client_id', clientId)
+    const siteIds = (clientSites ?? []).map(s => s.id)
+    const { data: clientReports } = siteIds.length
+      ? await supabase.from('reports').select('data, pdf_path').in('job_site_id', siteIds)
+      : { data: [] }
+    await Promise.all((clientReports ?? []).map(deleteReportFiles))
     await supabase.from('clients').delete().eq('id', clientId)
     navigate('/')
   }
@@ -55,7 +61,13 @@ export default function ClientPage() {
   function deleteSite(siteId) {
     const site = sites.find(s => s.id === siteId)
     setSiteModal(null)
-    deleteWithUndo({ item: site, setItems: setSites, table: 'job_sites', label: 'Property deleted', show })
+    deleteWithUndo({
+      item: site, setItems: setSites, table: 'job_sites', label: 'Property deleted', show,
+      cleanupFiles: async () => {
+        const { data: siteReports } = await supabase.from('reports').select('data, pdf_path').eq('job_site_id', siteId)
+        await Promise.all((siteReports ?? []).map(deleteReportFiles))
+      },
+    })
   }
 
   if (loading) {

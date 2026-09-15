@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { Toast, useToast } from '../components/Toast.jsx'
-import { deleteWithUndo, fmtDate } from '../lib/utils.js'
+import { deleteWithUndo, deleteReportFiles, fmtDate } from '../lib/utils.js'
 
 function fmtDateTime(iso) {
   const d = new Date(iso)
@@ -40,7 +40,10 @@ export default function SitePage() {
   function deleteReport(reportId) {
     const report = reports.find(r => r.id === reportId)
     setConfirmDeleteId(null)
-    deleteWithUndo({ item: report, setItems: setReports, table: 'reports', label: 'Report deleted', show })
+    deleteWithUndo({
+      item: report, setItems: setReports, table: 'reports', label: 'Report deleted', show,
+      cleanupFiles: () => deleteReportFiles(report),
+    })
   }
 
   if (loading) {

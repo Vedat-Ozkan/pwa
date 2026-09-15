@@ -8,12 +8,68 @@ const RETENTION_DAYS = 21
 const NO_PDF_RETENTION_DAYS = 60
 const DAY_MS = 24 * 60 * 60 * 1000
 
+// PhotoSection.jsx uploads to report-photos under {clientId}/{reportId}/...
+// the moment a photo is picked, before the report row exists (that's only
+// inserted on Save). If the user backs out or the app closes first, those
+// files never get a reports row and the purge logic above can never find
+// them. Sweep the bucket directly for report-id folders with no matching
+// row, and delete anything old enough that it's clearly not still mid-upload.
+const ORPHAN_GRACE_HOURS = 48
+
 function stripPurgedGroup(list, paths) {
   return (list ?? []).map(p => {
     if (!p.path) return p
     paths.push(p.path)
     return { caption: p.caption, purged: true }
   })
+}
+
+async function sweepOrphanedPhotos(supabase) {
+  let checked = 0
+  let removed = 0
+
+  const { data: clientFolders, error } = await supabase.storage.from('report-photos').list('', { limit: 1000 })
+  if (error) {
+    console.error('Orphan sweep: failed to list report-photos:', error.message)
+    return { checked, removed }
+  }
+
+  for (const clientFolder of clientFolders ?? []) {
+    const clientId = clientFolder.name
+    const { data: reportFolders } = await supabase.storage.from('report-photos').list(clientId, { limit: 1000 })
+
+    for (const reportFolder of reportFolders ?? []) {
+      const reportId = reportFolder.name
+      checked++
+
+      const { data: reportRow } = await supabase.from('reports').select('id').eq('id', reportId).maybeSingle()
+      if (reportRow) continue
+
+      const { data: labelFolders } = await supabase.storage.from('report-photos').list(`${clientId}/${reportId}`, { limit: 1000 })
+      const filePaths = []
+      let newestFile = 0
+      for (const labelFolder of labelFolders ?? []) {
+        const { data: files } = await supabase.storage.from('report-photos').list(`${clientId}/${reportId}/${labelFolder.name}`, { limit: 1000 })
+        for (const f of files ?? []) {
+          filePaths.push(`${clientId}/${reportId}/${labelFolder.name}/${f.name}`)
+          const created = new Date(f.created_at ?? 0).getTime()
+          if (created > newestFile) newestFile = created
+        }
+      }
+
+      if (!filePaths.length) continue
+      if (Date.now() - newestFile < ORPHAN_GRACE_HOURS * 60 * 60 * 1000) continue
+
+      const { error: rmErr } = await supabase.storage.from('report-photos').remove(filePaths)
+      if (rmErr) {
+        console.error(`Orphan sweep: failed to remove ${clientId}/${reportId}:`, rmErr.message)
+        continue
+      }
+      removed++
+    }
+  }
+
+  return { checked, removed }
 }
 
 export default async function handler(req, res) {
@@ -84,5 +140,10 @@ export default async function handler(req, res) {
     purged++
   }
 
-  return res.status(200).json({ checked: candidates?.length ?? 0, purged, skipped })
+  const orphans = await sweepOrphanedPhotos(supabase)
+
+  return res.status(200).json({
+    checked: candidates?.length ?? 0, purged, skipped,
+    orphansChecked: orphans.checked, orphansRemoved: orphans.removed,
+  })
 }

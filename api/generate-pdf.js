@@ -9,9 +9,11 @@ const CHROMIUM_URL =
   'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'
 
 // Photos render at ~380px tall in the PDF; 800px wide stays crisp when
-// inspectors zoom in to check leak/damage detail, while cutting file size
-// several× vs. the 1920px originals. Resizing happens server-side with sharp
-// since Supabase image transforms are Pro-plan only.
+// inspectors zoom in to check leak/damage detail. Uploads are already
+// compressed to 800px client-side (see PhotoSection.jsx), so this mostly
+// re-encodes at a lower quality for the PDF — the resize is a no-op safety
+// net for older photos uploaded before that cap existed. Done server-side
+// with sharp since Supabase image transforms are Pro-plan only.
 const PHOTO_WIDTH = 800
 const PHOTO_QUALITY = 70
 

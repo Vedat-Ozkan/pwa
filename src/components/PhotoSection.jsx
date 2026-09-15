@@ -20,9 +20,12 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
+// 800px matches the width generate-pdf.js renders photos at (PHOTO_WIDTH) —
+// uploading any larger just means every PDF regen and editor thumbnail
+// re-fetches bytes that get thrown away at render time.
 const COMPRESSION_OPTS = {
   maxSizeMB: 1.5,
-  maxWidthOrHeight: 1920,
+  maxWidthOrHeight: 800,
   useWebWorker: true,
   fileType: 'image/jpeg',
 }

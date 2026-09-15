@@ -15,13 +15,35 @@ export function randomId() {
   })
 }
 
-export function deleteWithUndo({ item, setItems, table, label, show }) {
+export async function deleteReportFiles(report) {
+  const groups = report.data?.photos ?? {}
+  const photoPaths = [...(groups.before ?? []), ...(groups.progress ?? []), ...(groups.after ?? [])]
+    .map(p => p.path)
+    .filter(Boolean)
+  if (photoPaths.length) {
+    const { error } = await supabase.storage.from('report-photos').remove(photoPaths)
+    if (error) console.error('Failed to remove report photos:', error.message)
+  }
+  if (report.pdf_path) {
+    const { error } = await supabase.storage.from('report-pdfs').remove([report.pdf_path])
+    if (error) console.error('Failed to remove report pdf:', error.message)
+  }
+}
+
+// cleanupFiles runs before the row delete (not after) because deleting a
+// job_sites/clients row cascades and takes its reports with it — by the time
+// the row is gone, there's nothing left to look up their photo paths from.
+export function deleteWithUndo({ item, setItems, table, label, show, cleanupFiles }) {
   setItems(xs => xs.filter(x => x.id !== item.id))
   let undone = false
   show(label, {
     actionLabel: 'Undo',
     duration: 5000,
     onAction: () => { undone = true; setItems(xs => [item, ...xs]) },
-    onTimeout: async () => { if (!undone) await supabase.from(table).delete().eq('id', item.id) },
+    onTimeout: async () => {
+      if (undone) return
+      await cleanupFiles?.()
+      await supabase.from(table).delete().eq('id', item.id)
+    },
   })
 }
