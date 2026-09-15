@@ -24,6 +24,15 @@
     "api/generate-pdf.js": {
       "maxDuration": 60,
       "memory": 1024
+    },
+    "api/cleanup-photos.js": {
+      "maxDuration": 30
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cleanup-photos",
+      "schedule": "0 8 * * *"
+    }
+  ]
 }

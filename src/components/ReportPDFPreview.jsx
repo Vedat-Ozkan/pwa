@@ -395,8 +395,14 @@ function PhotoPreviewGrid({ photos }) {
                 overflow: 'hidden', display: 'flex',
                 alignItems: 'center', justifyContent: 'center', borderRadius: 3,
               }}>
-                <img src={p.url} alt={p.caption || `Photo ${pi + 1}`}
-                  style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
+                {p.purged ? (
+                  <span style={{ fontSize: 10, color: 'var(--muted)', padding: 8, textAlign: 'center' }}>
+                    Image removed after 3 weeks — still in the PDF
+                  </span>
+                ) : (
+                  <img src={p.url} alt={p.caption || `Photo ${pi + 1}`}
+                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
+                )}
               </div>
               <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 5, textAlign: 'center', lineHeight: 1.4, minHeight: 30 }}>
                 {p.caption || ''}

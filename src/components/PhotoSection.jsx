@@ -45,12 +45,22 @@ function SortablePhoto({ photo, index, onRemove, onCaption }) {
       }}
     >
       <div style={{ position: 'relative' }}>
-          <img
-            src={photo.url}
-            alt={photo.caption || `Photo ${index + 1}`}
-            style={{ width: '100%', height: 160, objectFit: 'contain', display: 'block', background: '#f1f3f7' }}
-            draggable={false}
-          />
+          {photo.purged ? (
+            <div style={{
+              width: '100%', height: 160, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', textAlign: 'center', padding: 12,
+              fontSize: 12, color: '#94a3b8', background: '#f1f3f7',
+            }}>
+              Image removed after 3 weeks — still in the PDF
+            </div>
+          ) : (
+            <img
+              src={photo.url}
+              alt={photo.caption || `Photo ${index + 1}`}
+              style={{ width: '100%', height: 160, objectFit: 'contain', display: 'block', background: '#f1f3f7' }}
+              draggable={false}
+            />
+          )}
           {/* Drag handle — small icon only, not the whole image */}
           <div
             {...attributes} {...listeners}
