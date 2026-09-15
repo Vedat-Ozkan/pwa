@@ -100,18 +100,17 @@ export default async function handler(req, res) {
   }
 
   const now = Date.now()
-  let purged = 0
-  let skipped = 0
 
-  for (const report of candidates ?? []) {
+  // One-time backlogs (every pre-existing report crossing the threshold at
+  // once) can be dozens of rows — processing them one at a time, each doing
+  // a remove() then an update() round trip, serializes enough network calls
+  // to blow past the function's time limit. Run candidates concurrently.
+  const outcomes = await Promise.all((candidates ?? []).map(async (report) => {
     const updatedAt = new Date(report.updated_at).getTime()
     const hasFreshPdf = report.pdf_generated_at && new Date(report.pdf_generated_at).getTime() >= updatedAt
     const noPdfGraceExpired = now - updatedAt >= NO_PDF_RETENTION_DAYS * DAY_MS
 
-    if (!hasFreshPdf && !noPdfGraceExpired) {
-      skipped++
-      continue
-    }
+    if (!hasFreshPdf && !noPdfGraceExpired) return 'skipped'
 
     const groups = report.data?.photos ?? {}
     const paths = []
@@ -125,7 +124,7 @@ export default async function handler(req, res) {
       const { error: rmErr } = await supabase.storage.from('report-photos').remove(paths)
       if (rmErr) {
         console.error(`Failed to remove photos for report ${report.id}:`, rmErr.message)
-        continue
+        return 'failed'
       }
     }
 
@@ -135,10 +134,13 @@ export default async function handler(req, res) {
       .eq('id', report.id)
     if (updErr) {
       console.error(`Failed to mark report ${report.id} purged:`, updErr.message)
-      continue
+      return 'failed'
     }
-    purged++
-  }
+    return 'purged'
+  }))
+
+  const purged = outcomes.filter(o => o === 'purged').length
+  const skipped = outcomes.filter(o => o === 'skipped').length
 
   const orphans = await sweepOrphanedPhotos(supabase)
 
