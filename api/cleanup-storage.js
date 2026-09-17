@@ -73,6 +73,43 @@ async function sweepOrphanedPhotos(supabase) {
   return { checked, removed }
 }
 
+// Deleting a client/site/report in the app removes its PDF too (see
+// deleteReportFiles in src/lib/utils.js) — but that only covers rows that
+// still exist. Anything deleted before that fix shipped, or any edge case
+// that slips through, leaves an orphaned {reportId}.pdf with nothing left
+// to ever clean it up. Sweep report-pdfs directly the same way as photos.
+async function sweepOrphanedPdfs(supabase) {
+  let checked = 0
+  let removed = 0
+
+  const { data: files, error } = await supabase.storage.from('report-pdfs').list('', { limit: 1000 })
+  if (error) {
+    console.error('Orphan PDF sweep: failed to list report-pdfs:', error.message)
+    return { checked, removed }
+  }
+
+  for (const file of files ?? []) {
+    if (!file.name.endsWith('.pdf')) continue
+    const reportId = file.name.slice(0, -'.pdf'.length)
+    checked++
+
+    const { data: reportRow } = await supabase.from('reports').select('id').eq('id', reportId).maybeSingle()
+    if (reportRow) continue
+
+    const created = new Date(file.created_at ?? 0).getTime()
+    if (Date.now() - created < ORPHAN_GRACE_HOURS * 60 * 60 * 1000) continue
+
+    const { error: rmErr } = await supabase.storage.from('report-pdfs').remove([file.name])
+    if (rmErr) {
+      console.error(`Orphan PDF sweep: failed to remove ${file.name}:`, rmErr.message)
+      continue
+    }
+    removed++
+  }
+
+  return { checked, removed }
+}
+
 // By a year old, the source photos are long gone (purged after 21-60 days),
 // so a deleted PDF can never be regenerated. api/generate-pdf.js refuses to
 // try once pdf_deleted_at is set, showing a message instead.
@@ -182,11 +219,13 @@ export default async function handler(req, res) {
   const skipped = outcomes.filter(o => o === 'skipped').length
 
   const orphans = await sweepOrphanedPhotos(supabase)
+  const orphanPdfs = await sweepOrphanedPdfs(supabase)
   const pdfs = await sweepOldPdfs(supabase)
 
   return res.status(200).json({
     checked: candidates?.length ?? 0, purged, skipped,
     orphansChecked: orphans.checked, orphansRemoved: orphans.removed,
+    orphanPdfsChecked: orphanPdfs.checked, orphanPdfsRemoved: orphanPdfs.removed,
     pdfsChecked: pdfs.checked, pdfsDeleted: pdfs.deleted,
   })
 }
