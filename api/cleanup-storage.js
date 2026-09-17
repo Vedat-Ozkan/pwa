@@ -10,11 +10,13 @@ const PDF_RETENTION_DAYS = 365
 const DAY_MS = 24 * 60 * 60 * 1000
 
 // PhotoSection.jsx uploads to report-photos under {clientId}/{reportId}/...
-// the moment a photo is picked, before the report row exists (that's only
-// inserted on Save). If the user backs out or the app closes first, those
-// files never get a reports row and the purge logic above can never find
-// them. Sweep the bucket directly for report-id folders with no matching
-// row, and delete anything old enough that it's clearly not still mid-upload.
+// the moment a photo is picked, before that path is ever saved into the
+// report's data.photos JSON. If the user backs out, the app closes, or a
+// later save overwrites the edit before it's recorded, the file sits in
+// storage with nothing in the database ever pointing back to it — either
+// because no report row exists at all, or because the row exists but never
+// referenced that particular file. Sweep the bucket directly and delete
+// anything old enough that it's clearly not still mid-upload.
 const ORPHAN_GRACE_HOURS = 48
 
 function stripPurgedGroup(list, paths) {
@@ -25,52 +27,84 @@ function stripPurgedGroup(list, paths) {
   })
 }
 
+// Checks every report-id folder, not just ones with no matching row (see
+// comment above) — that's a lot more Storage/DB round trips than before.
+// Run report folders concurrently so a bucket with a normal number of
+// reports doesn't serialize enough network calls to blow the function's
+// time limit (the same failure mode fixed for the main purge loop below).
 async function sweepOrphanedPhotos(supabase) {
-  let checked = 0
-  let removed = 0
-
   const { data: clientFolders, error } = await supabase.storage.from('report-photos').list('', { limit: 1000 })
   if (error) {
     console.error('Orphan sweep: failed to list report-photos:', error.message)
-    return { checked, removed }
+    return { checked: 0, removed: 0 }
   }
 
-  for (const clientFolder of clientFolders ?? []) {
+  const perClient = await Promise.all((clientFolders ?? []).map(async (clientFolder) => {
     const clientId = clientFolder.name
     const { data: reportFolders } = await supabase.storage.from('report-photos').list(clientId, { limit: 1000 })
 
-    for (const reportFolder of reportFolders ?? []) {
+    const removedCounts = await Promise.all((reportFolders ?? []).map(async (reportFolder) => {
       const reportId = reportFolder.name
-      checked++
 
-      const { data: reportRow } = await supabase.from('reports').select('id').eq('id', reportId).maybeSingle()
-      if (reportRow) continue
+      const [{ data: reportRow }, { data: labelFolders }] = await Promise.all([
+        supabase.from('reports').select('id, data').eq('id', reportId).maybeSingle(),
+        supabase.storage.from('report-photos').list(`${clientId}/${reportId}`, { limit: 1000 }),
+      ])
 
-      const { data: labelFolders } = await supabase.storage.from('report-photos').list(`${clientId}/${reportId}`, { limit: 1000 })
-      const filePaths = []
-      let newestFile = 0
-      for (const labelFolder of labelFolders ?? []) {
-        const { data: files } = await supabase.storage.from('report-photos').list(`${clientId}/${reportId}/${labelFolder.name}`, { limit: 1000 })
-        for (const f of files ?? []) {
-          filePaths.push(`${clientId}/${reportId}/${labelFolder.name}/${f.name}`)
-          const created = new Date(f.created_at ?? 0).getTime()
-          if (created > newestFile) newestFile = created
+      const fileLists = await Promise.all((labelFolders ?? []).map(async (labelFolder) => {
+        const { data: labelFiles } = await supabase.storage.from('report-photos').list(`${clientId}/${reportId}/${labelFolder.name}`, { limit: 1000 })
+        return (labelFiles ?? []).map(f => ({
+          path: `${clientId}/${reportId}/${labelFolder.name}/${f.name}`,
+          createdAt: new Date(f.created_at ?? 0).getTime(),
+        }))
+      }))
+      const files = fileLists.flat()
+      if (!files.length) return 0
+
+      // No report row at all — the whole folder is abandoned (see
+      // ORPHAN_GRACE_HOURS comment above).
+      if (!reportRow) {
+        const newestFile = Math.max(...files.map(f => f.createdAt))
+        if (Date.now() - newestFile < ORPHAN_GRACE_HOURS * 60 * 60 * 1000) return 0
+
+        const { error: rmErr } = await supabase.storage.from('report-photos').remove(files.map(f => f.path))
+        if (rmErr) {
+          console.error(`Orphan sweep: failed to remove ${clientId}/${reportId}:`, rmErr.message)
+          return 0
         }
+        return files.length
       }
 
-      if (!filePaths.length) continue
-      if (Date.now() - newestFile < ORPHAN_GRACE_HOURS * 60 * 60 * 1000) continue
+      // Report row exists, but individual files can still go stray: an
+      // upload that never made it into a saved report.data.photos entry
+      // (e.g. the edit that would've recorded it was abandoned or
+      // overwritten), or a photo the retention purge above already stripped
+      // from the JSON whose storage object didn't get deleted at the time.
+      // Either way, if a file isn't referenced by the report's current
+      // photo list, nothing else will ever clean it up.
+      const groups = reportRow.data?.photos ?? {}
+      const referenced = new Set(
+        [...(groups.before ?? []), ...(groups.progress ?? []), ...(groups.after ?? [])]
+          .map(p => p.path).filter(Boolean)
+      )
+      const stray = files.filter(f => !referenced.has(f.path) && Date.now() - f.createdAt >= ORPHAN_GRACE_HOURS * 60 * 60 * 1000)
+      if (!stray.length) return 0
 
-      const { error: rmErr } = await supabase.storage.from('report-photos').remove(filePaths)
+      const { error: rmErr } = await supabase.storage.from('report-photos').remove(stray.map(f => f.path))
       if (rmErr) {
-        console.error(`Orphan sweep: failed to remove ${clientId}/${reportId}:`, rmErr.message)
-        continue
+        console.error(`Stray photo sweep: failed to remove files for ${clientId}/${reportId}:`, rmErr.message)
+        return 0
       }
-      removed++
-    }
-  }
+      return stray.length
+    }))
 
-  return { checked, removed }
+    return { checked: reportFolders?.length ?? 0, removed: removedCounts.reduce((a, b) => a + b, 0) }
+  }))
+
+  return perClient.reduce(
+    (acc, r) => ({ checked: acc.checked + r.checked, removed: acc.removed + r.removed }),
+    { checked: 0, removed: 0 }
+  )
 }
 
 // Deleting a client/site/report in the app removes its PDF too (see
