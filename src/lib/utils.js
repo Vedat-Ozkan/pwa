@@ -24,15 +24,14 @@ export async function deleteReportFiles(report) {
     const { error } = await supabase.storage.from('report-photos').remove(photoPaths)
     if (error) console.error('Failed to remove report photos:', error.message)
   }
-  if (report.pdf_path) {
+  if (report.pdf_path && report.pdf_storage !== 'r2') {
     const { error } = await supabase.storage.from('report-pdfs').remove([report.pdf_path])
     if (error) console.error('Failed to remove report pdf:', error.message)
   }
 }
 
-// cleanupFiles runs before the row delete (not after) because deleting a
-// job_sites/clients row cascades and takes its reports with it — by the time
-// the row is gone, there's nothing left to look up their photo paths from.
+// Supabase files are removed before a cascading row delete. Private R2 PDFs
+// are swept by the server cleanup job after their report row disappears.
 export function deleteWithUndo({ item, setItems, table, label, show, cleanupFiles }) {
   setItems(xs => xs.filter(x => x.id !== item.id))
   let undone = false

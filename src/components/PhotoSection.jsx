@@ -20,17 +20,15 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-// 800px matches the width generate-pdf.js renders photos at (PHOTO_WIDTH) —
-// uploading any larger just means every PDF regen and editor thumbnail
-// re-fetches bytes that get thrown away at render time. Quality matches
-// PHOTO_QUALITY there too — no point storing the source sharper than the
-// PDF it ends up in.
+// Keep an 800px WebP source for the editor and future PDF generation. The PDF
+// pipeline makes a slightly smaller JPEG copy, so retaining larger camera
+// originals would only consume storage and bandwidth.
 const COMPRESSION_OPTS = {
-  maxSizeMB: 1.5,
+  maxSizeMB: 0.5,
   maxWidthOrHeight: 800,
   initialQuality: 0.7,
   useWebWorker: true,
-  fileType: 'image/jpeg',
+  fileType: 'image/webp',
 }
 
 function SortablePhoto({ photo, index, onRemove, onCaption }) {
@@ -63,6 +61,8 @@ function SortablePhoto({ photo, index, onRemove, onCaption }) {
             <img
               src={photo.url}
               alt={photo.caption || `Photo ${index + 1}`}
+              loading="lazy"
+              decoding="async"
               style={{ width: '100%', height: 160, objectFit: 'contain', display: 'block', background: '#f1f3f7' }}
               draggable={false}
             />
@@ -160,10 +160,10 @@ export default function PhotoSection({ label, displayLabel, photos, onChange, cl
 
     const results = await Promise.allSettled(files.map(async (file) => {
       const compressed = await imageCompression(file, COMPRESSION_OPTS)
-      const path = `${clientId}/${reportId}/${label}/${randomId()}.jpg`
+      const path = `${clientId}/${reportId}/${label}/${randomId()}.webp`
       const { error } = await supabase.storage
         .from('report-photos')
-        .upload(path, compressed, { contentType: 'image/jpeg', upsert: false })
+        .upload(path, compressed, { contentType: 'image/webp', upsert: false })
       if (error) throw error
       const { data: { publicUrl } } = supabase.storage.from('report-photos').getPublicUrl(path)
       return { url: publicUrl, caption: '', path }

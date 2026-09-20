@@ -10,6 +10,16 @@ import { randomId, fmtDate } from '../lib/utils.js'
 
 function replacer(_, v) { return v === undefined ? null : v }
 
+// cleanup-storage.js only ever looks at reports where photos_purged_at IS
+// NULL, so a report that already went through one purge cycle needs that
+// flag cleared again the moment a live photo is saved onto it — otherwise
+// photos added after the first purge would never become eligible for a
+// second one.
+function hasLivePhoto(photos) {
+  const groups = photos ?? {}
+  return [...(groups.before ?? []), ...(groups.progress ?? []), ...(groups.after ?? [])].some(p => p.path)
+}
+
 function localToday() {
   const d = new Date()
   return [
@@ -171,6 +181,8 @@ export default function ReportPage() {
         photos: form.photos,
       },
     }
+
+    if (hasLivePhoto(form.photos)) payload.photos_purged_at = null
 
     let error
     if (isNew) {

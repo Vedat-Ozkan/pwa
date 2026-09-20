@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { deleteR2Pdf, isR2Configured, listR2Pdfs } from './lib/r2.js'
 
 // Photos are safe to delete once report-pdfs already has a fresh PDF baked
 // with them (see api/generate-pdf.js: PDFs inline photos as base64, so the
@@ -8,6 +9,25 @@ const RETENTION_DAYS = 21
 const NO_PDF_RETENTION_DAYS = 60
 const PDF_RETENTION_DAYS = 365
 const DAY_MS = 24 * 60 * 60 * 1000
+const LIST_PAGE_SIZE = 1000
+
+async function listAll(bucket, path) {
+  const objects = []
+  let offset = 0
+
+  while (true) {
+    const { data, error } = await bucket.list(path, {
+      limit: LIST_PAGE_SIZE,
+      offset,
+      sortBy: { column: 'name', order: 'asc' },
+    })
+    if (error) return { data: null, error }
+
+    objects.push(...(data ?? []))
+    if (!data || data.length < LIST_PAGE_SIZE) return { data: objects, error: null }
+    offset += data.length
+  }
+}
 
 // PhotoSection.jsx uploads to report-photos under {clientId}/{reportId}/...
 // the moment a photo is picked, before that path is ever saved into the
@@ -33,7 +53,8 @@ function stripPurgedGroup(list, paths) {
 // reports doesn't serialize enough network calls to blow the function's
 // time limit (the same failure mode fixed for the main purge loop below).
 async function sweepOrphanedPhotos(supabase) {
-  const { data: clientFolders, error } = await supabase.storage.from('report-photos').list('', { limit: 1000 })
+  const bucket = supabase.storage.from('report-photos')
+  const { data: clientFolders, error } = await listAll(bucket, '')
   if (error) {
     console.error('Orphan sweep: failed to list report-photos:', error.message)
     return { checked: 0, removed: 0 }
@@ -41,18 +62,18 @@ async function sweepOrphanedPhotos(supabase) {
 
   const perClient = await Promise.all((clientFolders ?? []).map(async (clientFolder) => {
     const clientId = clientFolder.name
-    const { data: reportFolders } = await supabase.storage.from('report-photos').list(clientId, { limit: 1000 })
+    const { data: reportFolders } = await listAll(bucket, clientId)
 
     const removedCounts = await Promise.all((reportFolders ?? []).map(async (reportFolder) => {
       const reportId = reportFolder.name
 
       const [{ data: reportRow }, { data: labelFolders }] = await Promise.all([
         supabase.from('reports').select('id, data').eq('id', reportId).maybeSingle(),
-        supabase.storage.from('report-photos').list(`${clientId}/${reportId}`, { limit: 1000 }),
+        listAll(bucket, `${clientId}/${reportId}`),
       ])
 
       const fileLists = await Promise.all((labelFolders ?? []).map(async (labelFolder) => {
-        const { data: labelFiles } = await supabase.storage.from('report-photos').list(`${clientId}/${reportId}/${labelFolder.name}`, { limit: 1000 })
+        const { data: labelFiles } = await listAll(bucket, `${clientId}/${reportId}/${labelFolder.name}`)
         return (labelFiles ?? []).map(f => ({
           path: `${clientId}/${reportId}/${labelFolder.name}/${f.name}`,
           createdAt: new Date(f.created_at ?? 0).getTime(),
@@ -116,7 +137,8 @@ async function sweepOrphanedPdfs(supabase) {
   let checked = 0
   let removed = 0
 
-  const { data: files, error } = await supabase.storage.from('report-pdfs').list('', { limit: 1000 })
+  const bucket = supabase.storage.from('report-pdfs')
+  const { data: files, error } = await listAll(bucket, '')
   if (error) {
     console.error('Orphan PDF sweep: failed to list report-pdfs:', error.message)
     return { checked, removed }
@@ -127,8 +149,12 @@ async function sweepOrphanedPdfs(supabase) {
     const reportId = file.name.slice(0, -'.pdf'.length)
     checked++
 
-    const { data: reportRow } = await supabase.from('reports').select('id').eq('id', reportId).maybeSingle()
-    if (reportRow) continue
+    const { data: reportRow } = await supabase
+      .from('reports')
+      .select('id, pdf_path, pdf_storage')
+      .eq('id', reportId)
+      .maybeSingle()
+    if (reportRow?.pdf_storage === 'supabase' && reportRow.pdf_path === file.name) continue
 
     const created = new Date(file.created_at ?? 0).getTime()
     if (Date.now() - created < ORPHAN_GRACE_HOURS * 60 * 60 * 1000) continue
@@ -144,6 +170,44 @@ async function sweepOrphanedPdfs(supabase) {
   return { checked, removed }
 }
 
+async function sweepOrphanedR2Pdfs(supabase) {
+  if (!isR2Configured()) return { checked: 0, removed: 0 }
+
+  let files
+  try {
+    files = await listR2Pdfs()
+  } catch (error) {
+    console.error('Orphan R2 PDF sweep: failed to list bucket:', error.message)
+    return { checked: 0, removed: 0 }
+  }
+
+  let checked = 0
+  let removed = 0
+  for (const file of files) {
+    if (!file.Key?.endsWith('.pdf')) continue
+    checked++
+    const reportId = file.Key.slice(0, -'.pdf'.length)
+    const { data: reportRow } = await supabase
+      .from('reports')
+      .select('id, pdf_path, pdf_storage')
+      .eq('id', reportId)
+      .maybeSingle()
+    if (reportRow?.pdf_storage === 'r2' && reportRow.pdf_path === file.Key) continue
+
+    const modified = file.LastModified?.getTime() ?? 0
+    if (Date.now() - modified < ORPHAN_GRACE_HOURS * 60 * 60 * 1000) continue
+
+    try {
+      await deleteR2Pdf(file.Key)
+      removed++
+    } catch (error) {
+      console.error(`Orphan R2 PDF sweep: failed to remove ${file.Key}:`, error.message)
+    }
+  }
+
+  return { checked, removed }
+}
+
 // By a year old, the source photos are long gone (purged after 21-60 days),
 // so a deleted PDF can never be regenerated. api/generate-pdf.js refuses to
 // try once pdf_deleted_at is set, showing a message instead.
@@ -152,7 +216,7 @@ async function sweepOldPdfs(supabase) {
 
   const { data: candidates, error } = await supabase
     .from('reports')
-    .select('id, pdf_path')
+    .select('id, pdf_path, pdf_storage')
     .not('pdf_path', 'is', null)
     .is('pdf_deleted_at', null)
     .lt('updated_at', cutoff)
@@ -163,14 +227,29 @@ async function sweepOldPdfs(supabase) {
   }
 
   const outcomes = await Promise.all((candidates ?? []).map(async (report) => {
-    const { error: rmErr } = await supabase.storage.from('report-pdfs').remove([report.pdf_path])
-    if (rmErr) {
-      console.error(`Failed to remove pdf for report ${report.id}:`, rmErr.message)
+    let removeError
+    if (report.pdf_storage === 'r2') {
+      if (!isR2Configured()) removeError = new Error('R2 is not configured')
+      else {
+        try { await deleteR2Pdf(report.pdf_path) } catch (error) { removeError = error }
+      }
+    } else {
+      const { error } = await supabase.storage.from('report-pdfs').remove([report.pdf_path])
+      removeError = error
+    }
+    if (removeError) {
+      console.error(`Failed to remove pdf for report ${report.id}:`, removeError.message)
       return false
     }
     const { error: updErr } = await supabase
       .from('reports')
-      .update({ pdf_path: null, pdf_generated_at: null, pdf_deleted_at: new Date().toISOString() })
+      .update({
+        pdf_path: null,
+        pdf_generated_at: null,
+        pdf_deleted_at: new Date().toISOString(),
+        pdf_storage: 'supabase',
+        pdf_migrated_at: null,
+      })
       .eq('id', report.id)
     if (updErr) {
       console.error(`Failed to mark report ${report.id} pdf-deleted:`, updErr.message)
@@ -254,12 +333,14 @@ export default async function handler(req, res) {
 
   const orphans = await sweepOrphanedPhotos(supabase)
   const orphanPdfs = await sweepOrphanedPdfs(supabase)
+  const orphanR2Pdfs = await sweepOrphanedR2Pdfs(supabase)
   const pdfs = await sweepOldPdfs(supabase)
 
   return res.status(200).json({
     checked: candidates?.length ?? 0, purged, skipped,
     orphansChecked: orphans.checked, orphansRemoved: orphans.removed,
     orphanPdfsChecked: orphanPdfs.checked, orphanPdfsRemoved: orphanPdfs.removed,
+    orphanR2PdfsChecked: orphanR2Pdfs.checked, orphanR2PdfsRemoved: orphanR2Pdfs.removed,
     pdfsChecked: pdfs.checked, pdfsDeleted: pdfs.deleted,
   })
 }

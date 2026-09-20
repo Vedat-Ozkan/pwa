@@ -410,6 +410,7 @@ function PhotoPreviewGrid({ photos }) {
                   </span>
                 ) : (
                   <img src={p.url} alt={p.caption || `Photo ${pi + 1}`}
+                    loading="lazy" decoding="async"
                     style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
                 )}
               </div>

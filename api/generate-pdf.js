@@ -2,22 +2,21 @@ import puppeteer from 'puppeteer-core'
 import sharp from 'sharp'
 import { createClient } from '@supabase/supabase-js'
 import { generateReportHTML } from './templates/report-template.js'
+import { deleteR2Pdf, getR2PdfUrl, isR2Configured } from './lib/r2.js'
 import { COMPANY_ID } from '../src/lib/constants.js'
 
 // Hosted Chromium binary — match @sparticuz/chromium-min installed version
 const CHROMIUM_URL =
   'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'
 
-// Photos render at ~380px tall in the PDF; 800px wide stays crisp when
-// inspectors zoom in to check leak/damage detail. Uploads are already
-// compressed to 800px client-side (see PhotoSection.jsx), so this mostly
-// re-encodes at a lower quality for the PDF — the resize is a no-op safety
-// net for older photos uploaded before that cap existed. Done server-side
-// with sharp since Supabase image transforms are Pro-plan only. Quality 60
-// keeps the generated PDF itself smaller, since it sticks around for a full
-// year (see cleanup-storage.js) after the source photos are long gone.
-const PHOTO_WIDTH = 800
-const PHOTO_QUALITY = 60
+// Photos render around 340px wide in the two-column PDF grid. A 720px copy is
+// still just over 2x that display width for zooming, while avoiding bytes the
+// PDF cannot use. Uploads are capped at 800px client-side; this also downsizes
+// older originals. Done server-side because Supabase image transforms are not
+// available on the free plan. The generated PDF remains for a full year after
+// its source photos are removed, so its encoding has the largest storage impact.
+const PHOTO_WIDTH = 720
+const PHOTO_QUALITY = 55
 
 async function inlinePhoto(photo) {
   if (!photo?.url) return photo
@@ -123,6 +122,21 @@ export default async function handler(req, res) {
     new Date(report.pdf_generated_at) >= new Date(report.updated_at)
 
   if (cachedFresh) {
+    if (report.pdf_storage === 'r2') {
+      if (!isR2Configured()) {
+        return res.status(500).json({ error: 'PDF is archived but R2 is not configured' })
+      }
+      try {
+        return res.status(200).json({
+          url: await getR2PdfUrl(report.pdf_path),
+          filename,
+          cached: true,
+        })
+      } catch (signError) {
+        console.error('Failed to sign R2 PDF URL:', signError)
+        return res.status(500).json({ error: 'Could not prepare archived PDF' })
+      }
+    }
     return res.status(200).json({
       url: `${publicUrl}?v=${new Date(report.pdf_generated_at).getTime()}`,
       filename,
@@ -173,9 +187,20 @@ export default async function handler(req, res) {
     const generatedAt = new Date().toISOString()
     const { error: updErr } = await supabase
       .from('reports')
-      .update({ pdf_path: storagePath, pdf_generated_at: generatedAt })
+      .update({
+        pdf_path: storagePath,
+        pdf_generated_at: generatedAt,
+        pdf_storage: 'supabase',
+        pdf_migrated_at: null,
+      })
       .eq('id', reportId)
-    if (updErr) console.warn('Failed to record pdf_generated_at:', updErr.message)
+    if (updErr) throw new Error(`Failed to record generated PDF: ${updErr.message}`)
+
+    if (report.pdf_storage === 'r2' && isR2Configured()) {
+      try { await deleteR2Pdf(report.pdf_path) } catch (deleteError) {
+        console.warn('Failed to remove superseded R2 PDF:', deleteError.message)
+      }
+    }
 
     return res.status(200).json({
       url: `${publicUrl}?v=${new Date(generatedAt).getTime()}`,

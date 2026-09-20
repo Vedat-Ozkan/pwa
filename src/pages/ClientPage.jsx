@@ -41,7 +41,7 @@ export default function ClientPage() {
     const { data: clientSites } = await supabase.from('job_sites').select('id').eq('client_id', clientId)
     const siteIds = (clientSites ?? []).map(s => s.id)
     const { data: clientReports } = siteIds.length
-      ? await supabase.from('reports').select('data, pdf_path').in('job_site_id', siteIds)
+      ? await supabase.from('reports').select('data, pdf_path, pdf_storage').in('job_site_id', siteIds)
       : { data: [] }
     await Promise.all((clientReports ?? []).map(deleteReportFiles))
     await supabase.from('clients').delete().eq('id', clientId)
@@ -64,7 +64,7 @@ export default function ClientPage() {
     deleteWithUndo({
       item: site, setItems: setSites, table: 'job_sites', label: 'Property deleted', show,
       cleanupFiles: async () => {
-        const { data: siteReports } = await supabase.from('reports').select('data, pdf_path').eq('job_site_id', siteId)
+        const { data: siteReports } = await supabase.from('reports').select('data, pdf_path, pdf_storage').eq('job_site_id', siteId)
         await Promise.all((siteReports ?? []).map(deleteReportFiles))
       },
     })

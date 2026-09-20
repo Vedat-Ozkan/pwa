@@ -30,7 +30,10 @@ export default function SitePage() {
   async function fetchAll() {
     const [{ data: s }, { data: r }] = await Promise.all([
       supabase.from('job_sites').select('*').eq('id', siteId).single(),
-      supabase.from('reports').select('*').eq('job_site_id', siteId).order('report_date', { ascending: true }),
+      supabase.from('reports')
+        .select('id, report_date, updated_at, report_name:data->>name')
+        .eq('job_site_id', siteId)
+        .order('report_date', { ascending: true }),
     ])
     if (s) setSite(s)
     if (r) setReports(r)
@@ -42,7 +45,10 @@ export default function SitePage() {
     setConfirmDeleteId(null)
     deleteWithUndo({
       item: report, setItems: setReports, table: 'reports', label: 'Report deleted', show,
-      cleanupFiles: () => deleteReportFiles(report),
+      cleanupFiles: async () => {
+        const { data } = await supabase.from('reports').select('data, pdf_path, pdf_storage').eq('id', reportId).single()
+        if (data) await deleteReportFiles(data)
+      },
     })
   }
 
@@ -96,7 +102,7 @@ export default function SitePage() {
             <div key={r.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--navy)' }}>
-                  {r.data?.name || fmtDate(r.report_date) || 'No date'}
+                  {r.report_name || r.data?.name || fmtDate(r.report_date) || 'No date'}
                 </div>
                 {r.updated_at && (
                   <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>

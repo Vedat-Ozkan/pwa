@@ -30,12 +30,19 @@
     },
     "api/regenerate-pdfs.js": {
       "maxDuration": 60
+    },
+    "api/migrate-pdfs-to-r2.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
     {
       "path": "/api/cleanup-storage",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/migrate-pdfs-to-r2",
+      "schedule": "30 8 * * *"
     }
   ]
 }
