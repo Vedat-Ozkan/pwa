@@ -27,3 +27,9 @@ dist-ssr
 .env
 .vercel
 .env*.local
+
+# Local-only files (client data, reference docs)
+private/
+
+# vite-plugin-pwa dev output
+dev-dist

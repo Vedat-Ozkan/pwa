@@ -63,7 +63,7 @@ function SetupScreen() {
               </a>
             </li>
             <li>
-              Run <code style={{ background: 'var(--soft)', padding: '2px 6px', borderRadius: 4, fontSize: 13 }}>supabase-setup.sql</code>{' '}
+              Run <code style={{ background: 'var(--soft)', padding: '2px 6px', borderRadius: 4, fontSize: 13 }}>supabase/supabase-setup.sql</code>{' '}
               in the Supabase SQL editor
             </li>
             <li>
