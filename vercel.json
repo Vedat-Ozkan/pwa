@@ -46,6 +46,10 @@
     {
       "path": "/api/migrate-pdfs-to-r2",
       "schedule": "30 8 * * *"
+    },
+    {
+      "path": "/api/migrate-photos-to-r2",
+      "schedule": "0 9 * * *"
     }
   ]
 }

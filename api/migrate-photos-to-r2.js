@@ -1,13 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
 import { isR2Configured, listR2Photos, uploadR2Photo } from './lib/r2.js'
 
-// One-off backfill (not on the cron schedule): copies every photo still
-// referenced by an unpurged report from the Supabase report-photos bucket to
-// R2 under the same path, then removes the Supabase copy. Photos already in
-// R2 are skipped, so invoke repeatedly with the CRON_SECRET bearer token until
-// `remaining` returns 0. Rerun after old PWA clients have updated, since they
-// may still upload to Supabase until then.
+// Temporary backfill, on the daily cron until old PWA clients stop uploading
+// to Supabase: copies every photo still referenced by an unpurged report from
+// the Supabase report-photos bucket to R2 under the same path, then removes
+// the Supabase copy. Photos already in R2 are skipped. Each run copies in
+// batches until its time budget is spent; trigger it from Vercel → Settings →
+// Cron Jobs → Run until `remaining` returns 0.
 const BATCH_SIZE = 25
+const TIME_BUDGET_MS = 45 * 1000
 
 function supabasePhotoUrl(path) {
   const encodedPath = path.split('/').map(encodeURIComponent).join('/')
@@ -66,7 +67,11 @@ export default async function handler(req, res) {
     .map(photo => photo.path)
     .filter(path => path && !inR2.has(path))
 
-  const outcomes = await Promise.all(pending.slice(0, BATCH_SIZE).map(path => migratePhoto(supabase, path)))
+  const startedAt = Date.now()
+  const outcomes = []
+  for (let i = 0; i < pending.length && Date.now() - startedAt < TIME_BUDGET_MS; i += BATCH_SIZE) {
+    outcomes.push(...await Promise.all(pending.slice(i, i + BATCH_SIZE).map(path => migratePhoto(supabase, path))))
+  }
   const migrated = outcomes.filter(outcome => outcome.status === 'migrated').length
 
   return res.status(200).json({

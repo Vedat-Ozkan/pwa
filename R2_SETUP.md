@@ -66,9 +66,11 @@ faster, invoke `/api/migrate-pdfs-to-r2` repeatedly with the existing
 ## 6. Move existing photos to R2
 
 Photos uploaded before the switch are still in Supabase's `report-photos`
-bucket and will not load until copied. Right after deploying, invoke
-`/api/migrate-photos-to-r2` repeatedly with the `CRON_SECRET` bearer token
-until `remaining` returns `0`. Run it again a few days later to catch photos
-uploaded by PWA clients that were still on the old version.
+bucket and will not load until copied. Right after deploying, open the
+project's **Settings → Cron Jobs** in Vercel and press **Run** on
+`/api/migrate-photos-to-r2` until its response shows `remaining: 0`. The job
+also runs daily to catch photos uploaded by PWA clients that were still on the
+old version; remove it from `vercel.json` once those runs report nothing to
+move.
 
 Never paste R2 credentials or `CRON_SECRET` into source control or chat.
