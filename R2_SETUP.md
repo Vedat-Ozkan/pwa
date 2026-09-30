@@ -3,7 +3,7 @@
 The app keeps active PDFs in Supabase. After six days without a report edit,
 the daily archive job copies each fresh PDF to private Cloudflare R2 storage,
 verifies its byte size, updates the report row, and then deletes the Supabase
-copy. Report photos remain in Supabase under the existing 21-day policy.
+copy. Report photos remain in Supabase under the existing 30-day policy.
 
 ## 1. Create a bucket-scoped API token
 

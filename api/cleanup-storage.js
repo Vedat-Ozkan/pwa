@@ -5,7 +5,7 @@ import { deleteR2Pdf, isR2Configured, listR2Pdfs } from './lib/r2.js'
 // with them (see api/generate-pdf.js: PDFs inline photos as base64, so the
 // source upload is no longer needed). Reports that never got a PDF still
 // get purged eventually so abandoned drafts don't accumulate storage forever.
-const RETENTION_DAYS = 21
+const RETENTION_DAYS = 30
 const NO_PDF_RETENTION_DAYS = 60
 const PDF_RETENTION_DAYS = 365
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -208,7 +208,7 @@ async function sweepOrphanedR2Pdfs(supabase) {
   return { checked, removed }
 }
 
-// By a year old, the source photos are long gone (purged after 21-60 days),
+// By a year old, the source photos are long gone (purged after 30-60 days),
 // so a deleted PDF can never be regenerated. api/generate-pdf.js refuses to
 // try once pdf_deleted_at is set, showing a message instead.
 async function sweepOldPdfs(supabase) {

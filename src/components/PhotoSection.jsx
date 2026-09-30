@@ -55,7 +55,7 @@ function SortablePhoto({ photo, index, onRemove, onCaption }) {
               justifyContent: 'center', textAlign: 'center', padding: 12,
               fontSize: 12, color: '#94a3b8', background: '#f1f3f7',
             }}>
-              Image removed after 3 weeks — still in the PDF
+              Image removed after 30 days — still in the PDF
             </div>
           ) : (
             <img

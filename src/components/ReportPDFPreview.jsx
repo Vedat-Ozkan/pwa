@@ -406,7 +406,7 @@ function PhotoPreviewGrid({ photos }) {
               }}>
                 {p.purged ? (
                   <span style={{ fontSize: 10, color: 'var(--muted)', padding: 8, textAlign: 'center' }}>
-                    Image removed after 3 weeks — still in the PDF
+                    Image removed after 30 days — still in the PDF
                   </span>
                 ) : (
                   <img src={p.url} alt={p.caption || `Photo ${pi + 1}`}
