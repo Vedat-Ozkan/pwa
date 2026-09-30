@@ -20,7 +20,8 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-// Keep an 800px WebP source for the editor and future PDF generation. The PDF
+// Keep an 800px JPEG source for the editor and future PDF generation (not
+// WebP: Safari can't encode it and silently falls back to large PNGs). The PDF
 // pipeline makes a slightly smaller JPEG copy, so retaining larger camera
 // originals would only consume storage and bandwidth.
 const COMPRESSION_OPTS = {
@@ -28,7 +29,7 @@ const COMPRESSION_OPTS = {
   maxWidthOrHeight: 800,
   initialQuality: 0.82,
   useWebWorker: true,
-  fileType: 'image/webp',
+  fileType: 'image/jpeg',
 }
 
 function SortablePhoto({ photo, index, onRemove, onCaption }) {
@@ -160,10 +161,10 @@ export default function PhotoSection({ label, displayLabel, photos, onChange, cl
 
     const results = await Promise.allSettled(files.map(async (file) => {
       const compressed = await imageCompression(file, COMPRESSION_OPTS)
-      const path = `${clientId}/${reportId}/${label}/${randomId()}.webp`
+      const path = `${clientId}/${reportId}/${label}/${randomId()}.jpg`
       const { error } = await supabase.storage
         .from('report-photos')
-        .upload(path, compressed, { contentType: 'image/webp', upsert: false })
+        .upload(path, compressed, { contentType: 'image/jpeg', upsert: false })
       if (error) throw error
       const { data: { publicUrl } } = supabase.storage.from('report-photos').getPublicUrl(path)
       return { url: publicUrl, caption: '', path }
