@@ -7,7 +7,9 @@ import { isR2Configured, listR2Photos, uploadR2Photo } from './lib/r2.js'
 // the Supabase copy. Photos already in R2 are skipped. Each run copies in
 // batches until its time budget is spent; trigger it from Vercel → Settings →
 // Cron Jobs → Run until `remaining` returns 0.
-const BATCH_SIZE = 25
+// Supabase rate-limits concurrent downloads (429) and connections, so keep
+// batches small and remove each batch's Supabase copies in one call.
+const BATCH_SIZE = 5
 const TIME_BUDGET_MS = 45 * 1000
 
 function supabasePhotoUrl(path) {
@@ -15,16 +17,13 @@ function supabasePhotoUrl(path) {
   return `${process.env.VITE_SUPABASE_URL}/storage/v1/object/public/report-photos/${encodedPath}`
 }
 
-async function migratePhoto(supabase, path) {
+async function migratePhoto(path) {
   try {
     const response = await fetch(supabasePhotoUrl(path))
     if (!response.ok) throw new Error(`Supabase download returned ${response.status}`)
     const body = Buffer.from(await response.arrayBuffer())
 
     await uploadR2Photo(path, body, response.headers.get('content-type') || 'image/jpeg')
-
-    const { error: removeError } = await supabase.storage.from('report-photos').remove([path])
-    if (removeError) console.warn(`Migrated ${path}, but Supabase cleanup failed:`, removeError.message)
 
     return { path, status: 'migrated', bytes: body.length }
   } catch (error) {
@@ -70,7 +69,14 @@ export default async function handler(req, res) {
   const startedAt = Date.now()
   const outcomes = []
   for (let i = 0; i < pending.length && Date.now() - startedAt < TIME_BUDGET_MS; i += BATCH_SIZE) {
-    outcomes.push(...await Promise.all(pending.slice(i, i + BATCH_SIZE).map(path => migratePhoto(supabase, path))))
+    const batch = await Promise.all(pending.slice(i, i + BATCH_SIZE).map(migratePhoto))
+    outcomes.push(...batch)
+
+    const copied = batch.filter(outcome => outcome.status === 'migrated').map(outcome => outcome.path)
+    if (copied.length) {
+      const { error: removeError } = await supabase.storage.from('report-photos').remove(copied)
+      if (removeError) console.warn('Copied batch to R2, but Supabase cleanup failed:', removeError.message)
+    }
   }
   const migrated = outcomes.filter(outcome => outcome.status === 'migrated').length
 
