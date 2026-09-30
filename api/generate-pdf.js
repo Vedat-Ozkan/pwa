@@ -16,7 +16,7 @@ const CHROMIUM_URL =
 // available on the free plan. The generated PDF remains for a full year after
 // its source photos are removed, so its encoding has the largest storage impact.
 const PHOTO_WIDTH = 720
-const PHOTO_QUALITY = 55
+const PHOTO_QUALITY = 72
 
 async function inlinePhoto(photo) {
   if (!photo?.url) return photo

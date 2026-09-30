@@ -26,7 +26,7 @@ import { CSS } from '@dnd-kit/utilities'
 const COMPRESSION_OPTS = {
   maxSizeMB: 0.5,
   maxWidthOrHeight: 800,
-  initialQuality: 0.7,
+  initialQuality: 0.82,
   useWebWorker: true,
   fileType: 'image/webp',
 }
