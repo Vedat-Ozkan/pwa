@@ -1,5 +1,6 @@
 import {
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
@@ -66,7 +67,7 @@ export async function getR2PdfUrl(key, expiresIn = 3600) {
   )
 }
 
-export async function listR2Pdfs() {
+async function listR2Objects(prefix) {
   const objects = []
   let continuationToken
 
@@ -74,10 +75,58 @@ export async function listR2Pdfs() {
     const page = await getClient().send(new ListObjectsV2Command({
       Bucket: process.env.R2_BUCKET_NAME,
       ContinuationToken: continuationToken,
+      Prefix: prefix,
+      Delimiter: prefix ? undefined : '/', // bucket root holds PDFs; photos live under photos/
     }))
     objects.push(...(page.Contents ?? []))
     continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined
   } while (continuationToken)
 
   return objects
+}
+
+export function listR2Pdfs() {
+  return listR2Objects()
+}
+
+// Report photos share the bucket under photos/, keyed by the same
+// {clientId}/{reportId}/{label}/{id} path they had in Supabase Storage.
+const PHOTO_PREFIX = 'photos/'
+
+export function listR2Photos() {
+  return listR2Objects(PHOTO_PREFIX)
+}
+
+export async function uploadR2Photo(path, body, contentType) {
+  return getClient().send(new PutObjectCommand({
+    Bucket: process.env.R2_BUCKET_NAME,
+    Key: PHOTO_PREFIX + path,
+    Body: body,
+    ContentType: contentType,
+  }))
+}
+
+export async function getR2PhotoUploadUrl(path) {
+  return getSignedUrl(
+    getClient(),
+    new PutObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: PHOTO_PREFIX + path, ContentType: 'image/jpeg' }),
+    { expiresIn: 600 }
+  )
+}
+
+export async function getR2PhotoUrl(path, expiresIn = 3600) {
+  return getSignedUrl(
+    getClient(),
+    new GetObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: PHOTO_PREFIX + path }),
+    { expiresIn }
+  )
+}
+
+export async function deleteR2Photos(paths) {
+  for (let i = 0; i < paths.length; i += 1000) {
+    await getClient().send(new DeleteObjectsCommand({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Delete: { Objects: paths.slice(i, i + 1000).map(path => ({ Key: PHOTO_PREFIX + path })) },
+    }))
+  }
 }

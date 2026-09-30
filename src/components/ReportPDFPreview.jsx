@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { LEAK_SOURCES, WORK_STATUSES } from '../lib/constants.js'
-import { fmtDate } from '../lib/utils.js'
+import { fmtDate, photoSrc } from '../lib/utils.js'
 
 const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent)
 
@@ -409,7 +409,7 @@ function PhotoPreviewGrid({ photos }) {
                     Image removed after 30 days — still in the PDF
                   </span>
                 ) : (
-                  <img src={p.url} alt={p.caption || `Photo ${pi + 1}`}
+                  <img src={photoSrc(p)} alt={p.caption || `Photo ${pi + 1}`}
                     loading="lazy" decoding="async"
                     style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
                 )}

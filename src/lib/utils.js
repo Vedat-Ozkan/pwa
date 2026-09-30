@@ -15,14 +15,32 @@ export function randomId() {
   })
 }
 
+// Photos with a storage path are served from private R2 via a signed-URL
+// redirect (api/photos.js); older entries may only carry a url.
+export function photoSrc(photo) {
+  return photo.path ? `/api/photos?path=${encodeURIComponent(photo.path)}` : photo.url
+}
+
+export async function photosApi(body) {
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch('/api/photos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`Photos API ${res.status}`)
+  return res.json()
+}
+
 export async function deleteReportFiles(report) {
   const groups = report.data?.photos ?? {}
   const photoPaths = [...(groups.before ?? []), ...(groups.progress ?? []), ...(groups.after ?? [])]
     .map(p => p.path)
     .filter(Boolean)
   if (photoPaths.length) {
-    const { error } = await supabase.storage.from('report-photos').remove(photoPaths)
-    if (error) console.error('Failed to remove report photos:', error.message)
+    try { await photosApi({ action: 'delete', paths: photoPaths }) } catch (err) {
+      console.error('Failed to remove report photos:', err.message)
+    }
   }
   if (report.pdf_path && report.pdf_storage !== 'r2') {
     const { error } = await supabase.storage.from('report-pdfs').remove([report.pdf_path])

@@ -33,6 +33,9 @@
     },
     "api/migrate-pdfs-to-r2.js": {
       "maxDuration": 60
+    },
+    "api/migrate-photos-to-r2.js": {
+      "maxDuration": 60
     }
   },
   "crons": [

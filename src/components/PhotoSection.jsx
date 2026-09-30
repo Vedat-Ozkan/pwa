@@ -1,8 +1,7 @@
 import { useState, useRef } from 'react'
 import imageCompression from 'browser-image-compression'
-import { supabase } from '../lib/supabase.js'
 import { useLockBodyScroll } from '../lib/useLockBodyScroll.js'
-import { randomId } from '../lib/utils.js'
+import { randomId, photoSrc, photosApi } from '../lib/utils.js'
 import {
   DndContext,
   closestCenter,
@@ -60,7 +59,7 @@ function SortablePhoto({ photo, index, onRemove, onCaption }) {
             </div>
           ) : (
             <img
-              src={photo.url}
+              src={photoSrc(photo)}
               alt={photo.caption || `Photo ${index + 1}`}
               loading="lazy"
               decoding="async"
@@ -162,12 +161,10 @@ export default function PhotoSection({ label, displayLabel, photos, onChange, cl
     const results = await Promise.allSettled(files.map(async (file) => {
       const compressed = await imageCompression(file, COMPRESSION_OPTS)
       const path = `${clientId}/${reportId}/${label}/${randomId()}.jpg`
-      const { error } = await supabase.storage
-        .from('report-photos')
-        .upload(path, compressed, { contentType: 'image/jpeg', upsert: false })
-      if (error) throw error
-      const { data: { publicUrl } } = supabase.storage.from('report-photos').getPublicUrl(path)
-      return { url: publicUrl, caption: '', path }
+      const { url } = await photosApi({ action: 'upload', path })
+      const put = await fetch(url, { method: 'PUT', body: compressed, headers: { 'Content-Type': 'image/jpeg' } })
+      if (!put.ok) throw new Error(`Photo upload ${put.status}`)
+      return { caption: '', path }
     }))
 
     const added = results.filter(r => r.status === 'fulfilled').map(r => r.value)
@@ -187,7 +184,7 @@ export default function PhotoSection({ label, displayLabel, photos, onChange, cl
 
   function removePhoto(idx) {
     const p = photos[idx]
-    if (p.path) supabase.storage.from('report-photos').remove([p.path])
+    if (p.path) photosApi({ action: 'delete', paths: [p.path] }).catch(err => console.error('Photo delete failed:', err))
     onChange(photos.filter((_, i) => i !== idx))
   }
 

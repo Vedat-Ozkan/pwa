@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js'
 // each report to naturally get edited again.
 //
 // Only reports where photos_purged_at IS NULL are safe to touch: their
-// source photos are still live in report-photos, so generate-pdf.js can
+// source photos are still live in R2, so generate-pdf.js can
 // re-inline them. Reports that already had photos purged must NOT be
 // regenerated — inlinePhoto() skips any photo with no live URL, so a forced
 // regen there would silently produce a PDF missing those photos, with no

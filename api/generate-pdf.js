@@ -2,7 +2,7 @@ import puppeteer from 'puppeteer-core'
 import sharp from 'sharp'
 import { createClient } from '@supabase/supabase-js'
 import { generateReportHTML } from './templates/report-template.js'
-import { deleteR2Pdf, getR2PdfUrl, isR2Configured } from './lib/r2.js'
+import { deleteR2Pdf, getR2PdfUrl, getR2PhotoUrl, isR2Configured } from './lib/r2.js'
 import { COMPANY_ID } from '../src/lib/constants.js'
 
 // Hosted Chromium binary — match @sparticuz/chromium-min installed version
@@ -19,6 +19,7 @@ const PHOTO_WIDTH = 720
 const PHOTO_QUALITY = 72
 
 async function inlinePhoto(photo) {
+  if (photo?.path) photo = { ...photo, url: await getR2PhotoUrl(photo.path) }
   if (!photo?.url) return photo
   try {
     const res = await fetch(photo.url)

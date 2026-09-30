@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { deleteR2Pdf, isR2Configured, listR2Pdfs } from './lib/r2.js'
+import { deleteR2Pdf, deleteR2Photos, isR2Configured, listR2Pdfs, listR2Photos } from './lib/r2.js'
 
 // Photos are safe to delete once report-pdfs already has a fresh PDF baked
 // with them (see api/generate-pdf.js: PDFs inline photos as base64, so the
@@ -29,7 +29,7 @@ async function listAll(bucket, path) {
   }
 }
 
-// PhotoSection.jsx uploads to report-photos under {clientId}/{reportId}/...
+// PhotoSection.jsx uploads to R2 under photos/{clientId}/{reportId}/...
 // the moment a photo is picked, before that path is ever saved into the
 // report's data.photos JSON. If the user backs out, the app closes, or a
 // later save overwrites the edit before it's recorded, the file sits in
@@ -47,85 +47,57 @@ function stripPurgedGroup(list, paths) {
   })
 }
 
-// Checks every report-id folder, not just ones with no matching row (see
-// comment above) — that's a lot more Storage/DB round trips than before.
-// Run report folders concurrently so a bucket with a normal number of
-// reports doesn't serialize enough network calls to blow the function's
-// time limit (the same failure mode fixed for the main purge loop below).
+// Checks every report the bucket holds photos for, not just ones with no
+// matching row (see comment above). Run reports concurrently so a bucket with
+// a normal number of reports doesn't serialize enough network calls to blow
+// the function's time limit (the same failure mode fixed for the main purge
+// loop below).
 async function sweepOrphanedPhotos(supabase) {
-  const bucket = supabase.storage.from('report-photos')
-  const { data: clientFolders, error } = await listAll(bucket, '')
-  if (error) {
-    console.error('Orphan sweep: failed to list report-photos:', error.message)
+  let objects
+  try {
+    objects = await listR2Photos()
+  } catch (error) {
+    console.error('Orphan sweep: failed to list R2 photos:', error.message)
     return { checked: 0, removed: 0 }
   }
 
-  const perClient = await Promise.all((clientFolders ?? []).map(async (clientFolder) => {
-    const clientId = clientFolder.name
-    const { data: reportFolders } = await listAll(bucket, clientId)
+  // Keys are photos/{clientId}/{reportId}/{label}/{file}.
+  const byReport = new Map()
+  for (const object of objects) {
+    const path = object.Key.slice('photos/'.length)
+    const reportId = path.split('/')[1]
+    if (!byReport.has(reportId)) byReport.set(reportId, [])
+    byReport.get(reportId).push({ path, createdAt: object.LastModified?.getTime() ?? 0 })
+  }
 
-    const removedCounts = await Promise.all((reportFolders ?? []).map(async (reportFolder) => {
-      const reportId = reportFolder.name
+  const removedCounts = await Promise.all([...byReport].map(async ([reportId, files]) => {
+    const { data: reportRow } = await supabase.from('reports').select('id, data').eq('id', reportId).maybeSingle()
 
-      const [{ data: reportRow }, { data: labelFolders }] = await Promise.all([
-        supabase.from('reports').select('id, data').eq('id', reportId).maybeSingle(),
-        listAll(bucket, `${clientId}/${reportId}`),
-      ])
+    // A missing report row means the whole folder is abandoned; otherwise
+    // individual files can still go stray: an upload that never made it into
+    // a saved report.data.photos entry (e.g. the edit that would've recorded
+    // it was abandoned or overwritten), or a photo the retention purge above
+    // already stripped from the JSON whose storage object didn't get deleted
+    // at the time. Either way, if a file isn't referenced by the report's
+    // current photo list, nothing else will ever clean it up.
+    const groups = reportRow?.data?.photos ?? {}
+    const referenced = new Set(
+      [...(groups.before ?? []), ...(groups.progress ?? []), ...(groups.after ?? [])]
+        .map(p => p.path).filter(Boolean)
+    )
+    const stray = files.filter(f => !referenced.has(f.path) && Date.now() - f.createdAt >= ORPHAN_GRACE_HOURS * 60 * 60 * 1000)
+    if (!stray.length) return 0
 
-      const fileLists = await Promise.all((labelFolders ?? []).map(async (labelFolder) => {
-        const { data: labelFiles } = await listAll(bucket, `${clientId}/${reportId}/${labelFolder.name}`)
-        return (labelFiles ?? []).map(f => ({
-          path: `${clientId}/${reportId}/${labelFolder.name}/${f.name}`,
-          createdAt: new Date(f.created_at ?? 0).getTime(),
-        }))
-      }))
-      const files = fileLists.flat()
-      if (!files.length) return 0
-
-      // No report row at all — the whole folder is abandoned (see
-      // ORPHAN_GRACE_HOURS comment above).
-      if (!reportRow) {
-        const newestFile = Math.max(...files.map(f => f.createdAt))
-        if (Date.now() - newestFile < ORPHAN_GRACE_HOURS * 60 * 60 * 1000) return 0
-
-        const { error: rmErr } = await supabase.storage.from('report-photos').remove(files.map(f => f.path))
-        if (rmErr) {
-          console.error(`Orphan sweep: failed to remove ${clientId}/${reportId}:`, rmErr.message)
-          return 0
-        }
-        return files.length
-      }
-
-      // Report row exists, but individual files can still go stray: an
-      // upload that never made it into a saved report.data.photos entry
-      // (e.g. the edit that would've recorded it was abandoned or
-      // overwritten), or a photo the retention purge above already stripped
-      // from the JSON whose storage object didn't get deleted at the time.
-      // Either way, if a file isn't referenced by the report's current
-      // photo list, nothing else will ever clean it up.
-      const groups = reportRow.data?.photos ?? {}
-      const referenced = new Set(
-        [...(groups.before ?? []), ...(groups.progress ?? []), ...(groups.after ?? [])]
-          .map(p => p.path).filter(Boolean)
-      )
-      const stray = files.filter(f => !referenced.has(f.path) && Date.now() - f.createdAt >= ORPHAN_GRACE_HOURS * 60 * 60 * 1000)
-      if (!stray.length) return 0
-
-      const { error: rmErr } = await supabase.storage.from('report-photos').remove(stray.map(f => f.path))
-      if (rmErr) {
-        console.error(`Stray photo sweep: failed to remove files for ${clientId}/${reportId}:`, rmErr.message)
-        return 0
-      }
-      return stray.length
-    }))
-
-    return { checked: reportFolders?.length ?? 0, removed: removedCounts.reduce((a, b) => a + b, 0) }
+    try {
+      await deleteR2Photos(stray.map(f => f.path))
+    } catch (error) {
+      console.error(`Orphan sweep: failed to remove photos for report ${reportId}:`, error.message)
+      return 0
+    }
+    return stray.length
   }))
 
-  return perClient.reduce(
-    (acc, r) => ({ checked: acc.checked + r.checked, removed: acc.removed + r.removed }),
-    { checked: 0, removed: 0 }
-  )
+  return { checked: byReport.size, removed: removedCounts.reduce((a, b) => a + b, 0) }
 }
 
 // Deleting a client/site/report in the app removes its PDF too (see
@@ -310,9 +282,10 @@ export default async function handler(req, res) {
     }
 
     if (paths.length) {
-      const { error: rmErr } = await supabase.storage.from('report-photos').remove(paths)
-      if (rmErr) {
-        console.error(`Failed to remove photos for report ${report.id}:`, rmErr.message)
+      try {
+        await deleteR2Photos(paths)
+      } catch (error) {
+        console.error(`Failed to remove photos for report ${report.id}:`, error.message)
         return 'failed'
       }
     }
