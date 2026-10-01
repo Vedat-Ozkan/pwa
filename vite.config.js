@@ -1,8 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { execSync } from 'child_process'
+import process from 'process'
+
+// Shown on the home page so we can tell which build a phone is running.
+const commit = (process.env.VERCEL_GIT_COMMIT_SHA ?? execSync('git rev-parse HEAD').toString()).slice(0, 7)
+const appVersion = `${commit} · ${new Date().toISOString().slice(0, 10)}`
 
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
+  },
   server: {
     watch: { ignored: ['**/api/**'] },
     fs: { deny: ['api'] },
@@ -22,9 +31,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // 'prompt' so a new version waits for the user to tap "Update" on the
-      // home screen instead of reloading mid-report.
-      registerType: 'prompt',
+      // The new worker takes over immediately; App.jsx then offers the reload
+      // so nobody loses a half-filled report.
+      registerType: 'autoUpdate',
       includeAssets: ['logo.png', 'icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'HSX Roofing Field Reports',

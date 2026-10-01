@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
-import { useRegisterSW } from 'virtual:pwa-register/react'
 import { isConfigured, supabase } from './lib/supabase.js'
 import ClientsPage from './pages/ClientsPage.jsx'
 import ClientPage from './pages/ClientPage.jsx'
@@ -12,25 +11,28 @@ import UpdateBanner from './components/UpdateBanner.jsx'
 
 export default function App() {
   const [session, setSession] = useState(undefined) // undefined = checking
-  // Installed PWAs (iOS especially) resume instead of relaunching, so the
-  // browser rarely checks for a new version on its own.
-  const { needRefresh: [updateReady], updateServiceWorker } = useRegisterSW({
-    onRegisteredSW(_url, registration) {
-      if (!registration) return
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') registration.update().catch(() => {})
-      })
-      setInterval(() => registration.update().catch(() => {}), 60 * 60 * 1000)
-    },
-  })
+  const [updateReady, setUpdateReady] = useState(false)
 
-  // On a page no service worker controlled (first visit), the new worker
-  // activates without waiting and the plugin never reloads, so reload here.
-  async function applyUpdate() {
-    const registration = await navigator.serviceWorker.getRegistration()
-    if (registration?.waiting) updateServiceWorker(true)
-    else window.location.reload()
-  }
+  // Installed PWAs (iOS especially) resume instead of relaunching, so check for
+  // a new version on every return to the foreground and hourly. A new service
+  // worker takes over at once (iOS never activates a waiting one), but an open
+  // page keeps its old code until it reloads, so offer that reload.
+  useEffect(() => {
+    const sw = navigator.serviceWorker
+    if (!sw) return
+    const check = () => sw.getRegistration().then(r => r?.update()).catch(() => {})
+    const onVisible = () => { if (document.visibilityState === 'visible') check() }
+    const onControllerChange = () => setUpdateReady(true)
+    // No controller means this page already loaded the newest version.
+    if (sw.controller) sw.addEventListener('controllerchange', onControllerChange)
+    document.addEventListener('visibilitychange', onVisible)
+    const interval = setInterval(check, 60 * 60 * 1000)
+    return () => {
+      sw.removeEventListener('controllerchange', onControllerChange)
+      document.removeEventListener('visibilitychange', onVisible)
+      clearInterval(interval)
+    }
+  }, [])
 
   useEffect(() => {
     if (!isConfigured) return
@@ -45,7 +47,7 @@ export default function App() {
 
   return (
     <>
-      {updateReady && <UpdateBanner onUpdate={applyUpdate} />}
+      {updateReady && <UpdateBanner onUpdate={() => window.location.reload()} />}
       <IOSInstallBanner />
       <Routes>
         <Route path="/" element={<ClientsPage />} />
