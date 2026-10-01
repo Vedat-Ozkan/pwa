@@ -16,37 +16,6 @@ Work toward the stated goal, not a gold-plated version of it. Verify the change 
 
 ---
 
-## Stack (fill in as project grows)
-
-- **Framework:** TBD
-- **Language:** TBD
-- **Styling:** TBD
-- **State:** TBD
-- **Testing:** TBD
-- **Build / bundler:** TBD
-
----
-
-## Commands (fill in as project grows)
-
-```bash
-# dev server
-# build
-# test
-# lint / type-check
-```
-
----
-
-## Conventions (fill in as project grows)
-
-- File naming:
-- Component structure:
-- API layer:
-- Environment variables:
-
----
-
 ## Things to avoid
 
 - Mocking internals in tests when integration tests are feasible.
