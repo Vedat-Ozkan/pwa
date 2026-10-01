@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
+import { useRegisterSW } from 'virtual:pwa-register/react'
 import { isConfigured, supabase } from './lib/supabase.js'
 import ClientsPage from './pages/ClientsPage.jsx'
 import ClientPage from './pages/ClientPage.jsx'
@@ -7,9 +8,29 @@ import SitePage from './pages/SitePage.jsx'
 import ReportPage from './pages/ReportPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import IOSInstallBanner from './components/IOSInstallBanner.jsx'
+import UpdateBanner from './components/UpdateBanner.jsx'
 
 export default function App() {
   const [session, setSession] = useState(undefined) // undefined = checking
+  // Installed PWAs (iOS especially) resume instead of relaunching, so the
+  // browser rarely checks for a new version on its own.
+  const { needRefresh: [updateReady], updateServiceWorker } = useRegisterSW({
+    onRegisteredSW(_url, registration) {
+      if (!registration) return
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') registration.update().catch(() => {})
+      })
+      setInterval(() => registration.update().catch(() => {}), 60 * 60 * 1000)
+    },
+  })
+
+  // On a page no service worker controlled (first visit), the new worker
+  // activates without waiting and the plugin never reloads, so reload here.
+  async function applyUpdate() {
+    const registration = await navigator.serviceWorker.getRegistration()
+    if (registration?.waiting) updateServiceWorker(true)
+    else window.location.reload()
+  }
 
   useEffect(() => {
     if (!isConfigured) return
@@ -24,6 +45,7 @@ export default function App() {
 
   return (
     <>
+      {updateReady && <UpdateBanner onUpdate={applyUpdate} />}
       <IOSInstallBanner />
       <Routes>
         <Route path="/" element={<ClientsPage />} />

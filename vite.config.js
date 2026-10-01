@@ -22,7 +22,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' so a new version waits for the user to tap "Update" on the
+      // home screen instead of reloading mid-report.
+      registerType: 'prompt',
       includeAssets: ['logo.png', 'icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'HSX Roofing Field Reports',

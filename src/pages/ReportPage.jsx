@@ -7,6 +7,7 @@ import ReportPDFPreview from '../components/ReportPDFPreview.jsx'
 import BottomSheetPicker from '../components/BottomSheetPicker.jsx'
 import { ROOF_TYPES, SERVICE_TYPES, LEAK_SOURCES, WORK_STATUSES, COMPANY_ID } from '../lib/constants.js'
 import { randomId, fmtDate } from '../lib/utils.js'
+import { useUpdateGuard } from '../lib/updateGuard.js'
 
 function replacer(_, v) { return v === undefined ? null : v }
 
@@ -110,10 +111,13 @@ export default function ReportPage() {
 
   useEffect(() => {
     if (!isDirty) return
-    const handler = (e) => { e.preventDefault(); e.returnValue = '' }
+    const handler = (e) => {
+      if (savedForm.current === form) return // saved since this render (e.g. save-then-update)
+      e.preventDefault(); e.returnValue = ''
+    }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
-  }, [isDirty])
+  }, [isDirty, form])
 
   const confirmLeave = useCallback(() => {
     if (!isDirty) return true
@@ -202,6 +206,13 @@ export default function ReportPage() {
     setSaving(false)
     return !error
   }
+
+  useUpdateGuard(async () => {
+    if (saving) return false
+    if (!isDirty) return true
+    if (!window.confirm('You have unsaved changes. Save them and update?')) return false
+    return save()
+  })
 
   if (loading) {
     return (
@@ -478,9 +489,8 @@ export default function ReportPage() {
         </Section>
 
         {/* ── PDF Preview ── */}
-        <div style={{
+        <div className="pdf-preview-bar" style={{
           position: 'sticky',
-          top: 'calc(56px + env(safe-area-inset-top))',
           zIndex: 40,
           margin: '28px -16px 0',
           background: 'var(--navy)',

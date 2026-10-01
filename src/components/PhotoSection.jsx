@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import imageCompression from 'browser-image-compression'
 import { useLockBodyScroll } from '../lib/useLockBodyScroll.js'
 import { randomId, photoSrc, photosApi } from '../lib/utils.js'
+import { useUpdateGuard } from '../lib/updateGuard.js'
 import {
   DndContext,
   closestCenter,
@@ -142,6 +143,11 @@ export default function PhotoSection({ label, displayLabel, photos, onChange, cl
     }
     currentDragY.current = 0
   }
+
+  useUpdateGuard(() => {
+    if (uploading) window.alert('Photos are still uploading. Tap Update again once they finish.')
+    return !uploading
+  })
 
   const cameraId = `camera-${label}`
   const galleryId = `gallery-${label}`

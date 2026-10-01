@@ -381,3 +381,37 @@ select {
   color: var(--muted);
 }
 .empty-state p { margin: 8px 0 0; font-size: 14px; }
+
+/* ─── Update banner (sticky, above every page) ─── */
+:root { --update-h: calc(68px + env(safe-area-inset-top)); }
+.update-banner {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  height: var(--update-h);
+  padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+  background: var(--navy);
+}
+.update-banner button {
+  display: block;
+  width: 100%;
+  max-width: 720px;
+  height: 48px;
+  margin: 0 auto;
+  background: #1a7d35;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.update-ready .topbar {
+  top: var(--update-h);
+  padding-top: 0;
+  min-height: 56px;
+}
+.pdf-preview-bar { top: calc(56px + env(safe-area-inset-top)); }
+.update-ready .pdf-preview-bar { top: calc(var(--update-h) + 56px); }
+.update-ready .hero { padding-top: 20px; }
+.update-ready .toast { top: calc(var(--update-h) + 56px + 12px); }
