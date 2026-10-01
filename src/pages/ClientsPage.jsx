@@ -181,6 +181,10 @@ export default function ClientsPage() {
             </div>
           ))}
         </div>
+
+        <p style={{ textAlign: 'right', fontSize: 11, color: 'var(--muted)', marginTop: 16 }}>
+          Version {import.meta.env.VITE_APP_VERSION}
+        </p>
       </main>
 
       {/* Floating new client button */}
