@@ -30,6 +30,10 @@ function getClient() {
         accessKeyId: process.env.R2_ACCESS_KEY_ID,
         secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
       },
+      // The SDK's default checksums put an empty-body CRC32 into presigned PUT
+      // URLs, so R2 rejects every browser upload.
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
     })
   }
   return client
